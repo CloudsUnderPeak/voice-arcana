@@ -14,8 +14,11 @@ const COLORS = Object.freeze({
   line: "rgba(197, 133, 111, 0.36)",
 });
 
-export async function downloadResultImage(analysis, artwork) {
-  await document.fonts?.ready;
+export async function createResultImageFile(analysis, artwork) {
+  await Promise.all([
+    document.fonts?.ready,
+    waitForArtwork(artwork),
+  ]);
 
   const canvas = document.createElement("canvas");
   canvas.width = IMAGE_WIDTH;
@@ -28,10 +31,43 @@ export async function downloadResultImage(analysis, artwork) {
 
   drawResultImage(context, analysis, artwork);
   const blob = await canvasToBlob(canvas);
-  const url = URL.createObjectURL(blob);
+  return new File([blob], resultImageFilename(analysis.card), {
+    type: "image/png",
+  });
+}
+
+export function canShareResultImage(file, shareNavigator = globalThis.navigator) {
+  if (
+    typeof shareNavigator?.share !== "function"
+    || typeof shareNavigator?.canShare !== "function"
+  ) {
+    return false;
+  }
+
+  try {
+    return shareNavigator.canShare({ files: [file] });
+  } catch {
+    return false;
+  }
+}
+
+export function shareResultImage(
+  file,
+  card,
+  shareNavigator = globalThis.navigator,
+) {
+  return shareNavigator.share({
+    files: [file],
+    title: `Voice Arcana｜${card.name}`,
+    text: `我的聲音牌是「${card.name}」。`,
+  });
+}
+
+export function downloadResultImage(file) {
+  const url = URL.createObjectURL(file);
   const link = document.createElement("a");
   link.href = url;
-  link.download = resultImageFilename(analysis.card);
+  link.download = file.name;
   link.hidden = true;
   document.body.append(link);
   link.click();
@@ -249,7 +285,7 @@ function drawFooter(context) {
   context.fillStyle = COLORS.mist;
   context.font = '500 17px "Noto Sans TC", sans-serif';
   context.letterSpacing = "1px";
-  context.fillText("錄音與圖片皆在此裝置處理，沒有上傳。", 76, 1252);
+  context.fillText("圖片由本裝置產生；Voice Arcana 不接收或保存錄音。", 76, 1252);
   context.fillText("本結果是創意詮釋，不代表人格、身分、情緒或健康診斷。", 76, 1285);
 }
 
@@ -279,6 +315,22 @@ function canvasToBlob(canvas) {
       }
     }, "image/png");
   });
+}
+
+async function waitForArtwork(artwork) {
+  if (!artwork) return;
+
+  for (let attempt = 0; attempt < 2 && !artwork.complete; attempt += 1) {
+    await new Promise((resolve) => {
+      function settle() {
+        artwork.removeEventListener("load", settle);
+        artwork.removeEventListener("error", settle);
+        resolve();
+      }
+      artwork.addEventListener("load", settle, { once: true });
+      artwork.addEventListener("error", settle, { once: true });
+    });
+  }
 }
 
 function withAlpha(hex, alpha) {

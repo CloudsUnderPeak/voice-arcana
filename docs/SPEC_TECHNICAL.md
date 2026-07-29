@@ -82,7 +82,7 @@ domain → utils
 
 原始 sample、Blob 與 AudioBuffer 不可送入 `fetch`、XHR、WebSocket、Beacon 或持久化儲存。
 
-結果分享使用固定 1080 × 1350 的 Canvas 在本機重繪牌面、六軸與提問，再以 `canvas.toBlob("image/png")` 產生暫時的 Object URL 觸發下載。完成後立即撤銷 URL；匯出流程不讀取原始 sample、Blob 或 AudioBuffer。
+結果分享使用固定 1080 × 1350 的 Canvas 在本機重繪牌面、六軸與提問，再以 `canvas.toBlob("image/png")` 建立 `File`。若 `navigator.canShare({ files })` 通過，使用 `navigator.share()` 將 PNG 交給使用者選擇的系統分享目標；否則以暫時的 Object URL 觸發下載並在完成後撤銷 URL。分享 API 必須直接由使用者點擊觸發，因此結果頁會預先準備圖片。匯出流程不讀取原始 sample、Blob 或 AudioBuffer。
 
 ## 5. 錄音生命週期
 

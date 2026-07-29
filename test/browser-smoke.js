@@ -130,8 +130,15 @@ try {
       downloadName = this.download;
       downloadBlob = fetch(this.href).then((response) => response.blob());
     };
+    await waitFor(() => !fixture.querySelector("[data-action='share']").disabled);
+    assert(
+      fixture.querySelector("[data-action='share']").textContent.includes("下載圖片"),
+      "download fallback label",
+    );
     fixture.querySelector("[data-action='share']").click();
-    await waitFor(() => fixture.querySelector("[data-share-status]").textContent);
+    await waitFor(() =>
+      fixture.querySelector("[data-share-status]").textContent.includes("已下載"),
+    );
     HTMLAnchorElement.prototype.click = originalClick;
     assert(downloadName === "voice-arcana-night-keeper.png", "share image download");
     const png = new DataView(await (await downloadBlob).arrayBuffer());
