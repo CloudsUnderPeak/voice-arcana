@@ -44,12 +44,14 @@ domain → utils
 ```js
 {
   view: "experience" | "processing" | "result",
-  recordingStatus: "idle" | "requesting" | "recording" | "ready",
+  recordingStatus: "idle" | "requesting" | "recording" | "validating" | "ready",
   recording: null | {
     blob: Blob,
     url: string,
     duration: number,
-    type: string
+    type: string,
+    audioBuffer: AudioBuffer,
+    qualityWarning: string
   },
   analysis: null | {
     portrait: VoicePortrait,
@@ -86,11 +88,14 @@ domain → utils
 
 ## 5. 錄音生命週期
 
-- 優先 MIME：WebM Opus、Ogg Opus、MP4、WebM；以 `MediaRecorder.isTypeSupported` 選擇。
+- 優先 MIME：WebM Opus、Ogg Opus、MP4、WebM；格式必須同時通過 `MediaRecorder.isTypeSupported` 與 `<audio>.canPlayType`。舊版未提供 `isTypeSupported` 時僅在可播放的前提下使用 MP4；沒有共同格式時交由瀏覽器選擇預設格式。
 - constraint 請求 mono 並關閉 echo cancellation、noise suppression、auto gain，讓聲學代理值較少被瀏覽器處理改變；瀏覽器可忽略 constraint。
 - 每 250ms 產生 chunk，避免單一巨大 buffer。
 - 60 秒由高解析時間計時，達上限呼叫 `stop()`。
 - MediaStream 不連接到 `AudioDestinationNode`，避免回授。
+- 停止後先拒絕空 Blob，再以 `decodeAudioData` 驗證格式並快取 AudioBuffer，避免分析時重複解碼。
+- 以 20ms frame 的峰值 RMS 標記近乎靜音錄音；只顯示品質提示，不以裝置音量差異直接阻擋。
+- `<audio>` 必須監聽載入錯誤；無法試聽時停用分析並提供重錄或更新瀏覽器的指引。
 
 ## 6. 效能預算
 

@@ -79,6 +79,19 @@ try {
 
   experience = mountExperiencePage(
     fixture,
+    { recordingStatus: "validating", recording: null, error: "" },
+    actions,
+  );
+  const validatingButton = fixture.querySelector("[data-action='start']");
+  assert(validatingButton?.disabled, "validating disables recording action");
+  assert(
+    validatingButton.textContent.includes("正在確認錄音"),
+    "validating status copy",
+  );
+  experience.destroy();
+
+  experience = mountExperiencePage(
+    fixture,
     { recordingStatus: "recording", recording: null, error: "" },
     actions,
   );
@@ -100,13 +113,29 @@ try {
       recording: {
         duration: 42,
         url: "data:audio/wav;base64,UklGRg==",
+        qualityWarning: "錄音訊號偏小。",
       },
       error: "",
     },
     actions,
   );
   assert(fixture.querySelector("audio"), "ready audio preview");
+  assert(
+    fixture.textContent.includes("錄音訊號偏小"),
+    "ready low-signal warning",
+  );
   assert(fixture.querySelector("[data-action='submit']"), "ready submit action");
+  fixture.querySelector("audio").dispatchEvent(new Event("error"));
+  assert(
+    fixture.querySelector("[data-playback-message]").textContent.includes(
+      "無法在此瀏覽器試聽",
+    ),
+    "playback error guidance",
+  );
+  assert(
+    fixture.querySelector("[data-action='submit']").disabled,
+    "playback error blocks analysis",
+  );
   assert(!fixture.querySelector("[data-wave]"), "ready hides waveform");
   experience.destroy();
 

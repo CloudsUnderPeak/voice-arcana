@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test test/cards.test.js test/fft.test.js test/math.test.js test/result-image.test.js test/voice-analysis.test.js",
+    "test": "node --test test/audio-quality.test.js test/audio-recorder.test.js test/cards.test.js test/fft.test.js test/math.test.js test/result-image.test.js test/voice-analysis.test.js",
     "check": "node --check src/main.js && npm test"
   },
   "devDependencies": {

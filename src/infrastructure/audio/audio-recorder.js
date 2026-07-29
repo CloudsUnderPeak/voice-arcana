@@ -130,12 +130,30 @@ export class AudioRecorder {
   }
 }
 
-function selectMimeType() {
+export function selectMimeType(
+  MediaRecorderClass = globalThis.MediaRecorder,
+  audio = globalThis.document?.createElement("audio"),
+) {
   const candidates = [
     "audio/webm;codecs=opus",
     "audio/ogg;codecs=opus",
     "audio/mp4",
     "audio/webm",
   ];
-  return candidates.find((type) => MediaRecorder.isTypeSupported(type)) || "";
+
+  if (typeof MediaRecorderClass?.isTypeSupported !== "function") {
+    return canPlayType(audio, "audio/mp4") ? "audio/mp4" : "";
+  }
+
+  return (
+    candidates.find(
+      (type) =>
+        MediaRecorderClass.isTypeSupported(type) && canPlayType(audio, type),
+    ) || ""
+  );
+}
+
+function canPlayType(audio, type) {
+  const support = audio?.canPlayType?.(type);
+  return support === "maybe" || support === "probably";
 }

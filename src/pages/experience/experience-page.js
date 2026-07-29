@@ -8,6 +8,7 @@ export function mountExperiencePage(root, state, actions) {
   const status = state.recordingStatus;
   const isRecording = status === "recording";
   const isRequesting = status === "requesting";
+  const isValidating = status === "validating";
   const isReady = status === "ready" && state.recording;
 
   root.innerHTML = `
@@ -57,7 +58,13 @@ export function mountExperiencePage(root, state, actions) {
             class="recorder-panel recorder-panel--${status} ${isRecording ? "is-recording" : ""}"
             aria-label="錄音控制"
           >
-            ${recordingPanelContent({ state, isRecording, isRequesting, isReady })}
+            ${recordingPanelContent({
+              state,
+              isRecording,
+              isRequesting,
+              isValidating,
+              isReady,
+            })}
           </section>
         </section>
 
@@ -69,10 +76,18 @@ export function mountExperiencePage(root, state, actions) {
   const stopButton = root.querySelector("[data-action='stop']");
   const submitButton = root.querySelector("[data-action='submit']");
   const resetButton = root.querySelector("[data-action='reset']");
+  const audioPreview = root.querySelector("[data-audio-preview]");
+  const playbackMessage = root.querySelector("[data-playback-message]");
   startButton?.addEventListener("click", actions.onStart);
   stopButton?.addEventListener("click", actions.onStop);
   submitButton?.addEventListener("click", actions.onSubmit);
   resetButton?.addEventListener("click", actions.onReset);
+  audioPreview?.addEventListener("error", handlePlaybackError);
+  audioPreview?.addEventListener("loadedmetadata", handlePlaybackReady);
+  if (audioPreview && state.recording?.url) {
+    audioPreview.src = state.recording.url;
+    audioPreview.load();
+  }
   bindHomeLink(root);
 
   const meter = root.querySelector("[data-wave]");
@@ -108,12 +123,37 @@ export function mountExperiencePage(root, state, actions) {
       stopButton?.removeEventListener("click", actions.onStop);
       submitButton?.removeEventListener("click", actions.onSubmit);
       resetButton?.removeEventListener("click", actions.onReset);
+      audioPreview?.removeEventListener("error", handlePlaybackError);
+      audioPreview?.removeEventListener("loadedmetadata", handlePlaybackReady);
       destroyArtworkFallbacks();
     },
   };
+
+  function handlePlaybackError() {
+    if (playbackMessage) {
+      playbackMessage.hidden = false;
+      playbackMessage.textContent =
+        "這段錄音無法在此瀏覽器試聽，請重新錄製或改用最新版瀏覽器。";
+    }
+    if (submitButton) submitButton.disabled = true;
+  }
+
+  function handlePlaybackReady() {
+    if (playbackMessage) {
+      playbackMessage.hidden = true;
+      playbackMessage.textContent = "";
+    }
+    if (submitButton) submitButton.disabled = false;
+  }
 }
 
-function recordingPanelContent({ state, isRecording, isRequesting, isReady }) {
+function recordingPanelContent({
+  state,
+  isRecording,
+  isRequesting,
+  isValidating,
+  isReady,
+}) {
   const error = state.error ? `<p class="form-message" role="alert">${state.error}</p>` : "";
 
   if (isRecording) {
@@ -151,16 +191,32 @@ function recordingPanelContent({ state, isRecording, isRequesting, isReady }) {
         </time>
       </div>
       <div class="audio-preview">
-        <audio controls preload="metadata" src="${state.recording.url}"></audio>
+        <audio controls preload="metadata" data-audio-preview></audio>
       </div>
+      <p class="form-message" role="alert" data-playback-message hidden></p>
+      ${
+        state.recording.qualityWarning
+          ? `<p class="form-message" role="status">${state.recording.qualityWarning}</p>`
+          : ""
+      }
       ${error}
-      <div class="recorder-actions">${recordingControls({ isRecording, isRequesting, isReady })}</div>
+      <div class="recorder-actions">${recordingControls({
+        isRecording,
+        isRequesting,
+        isValidating,
+        isReady,
+      })}</div>
     `;
   }
 
   return `
     ${error}
-    <div class="recorder-actions">${recordingControls({ isRecording, isRequesting, isReady })}</div>
+    <div class="recorder-actions">${recordingControls({
+      isRecording,
+      isRequesting,
+      isValidating,
+      isReady,
+    })}</div>
   `;
 }
 
@@ -171,7 +227,7 @@ function describeLevel(level) {
   return "聲音飽滿";
 }
 
-function recordingControls({ isRecording, isRequesting, isReady }) {
+function recordingControls({ isRecording, isRequesting, isValidating, isReady }) {
   if (isRecording) {
     return `<button class="record-button record-button--stop" type="button" data-action="stop"><span></span>結束錄音</button>`;
   }
@@ -182,8 +238,16 @@ function recordingControls({ isRecording, isRequesting, isReady }) {
     `;
   }
   return `
-    <button class="record-button" type="button" data-action="start" ${isRequesting ? "disabled" : ""}>
-      <span class="record-button__dot"></span>${isRequesting ? "正在開啟麥克風…" : "開始錄音"}
+    <button class="record-button" type="button" data-action="start" ${
+      isRequesting || isValidating ? "disabled" : ""
+    }>
+      <span class="record-button__dot"></span>${
+        isRequesting
+          ? "正在開啟麥克風…"
+          : isValidating
+            ? "正在確認錄音…"
+            : "開始錄音"
+      }
     </button>
   `;
 }

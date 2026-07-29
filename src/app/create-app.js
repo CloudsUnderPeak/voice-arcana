@@ -2,6 +2,7 @@ import { createSessionStore } from "./session-store.js";
 import { AudioRecorder } from "../infrastructure/audio/audio-recorder.js";
 import { decodeAudioBlob } from "../infrastructure/audio/decode-audio.js";
 import { analyzeVoice } from "../domain/voice-portrait/analyze-voice.js";
+import { assessAudioQuality } from "../domain/voice-portrait/assess-audio-quality.js";
 import { selectVoiceCard } from "../domain/cards/select-voice-card.js";
 import { mountExperiencePage } from "../pages/experience/experience-page.js";
 import { mountProcessingPage } from "../pages/processing/processing-page.js";
@@ -14,6 +15,8 @@ export function createApp(root) {
   let page = null;
   let recorder = null;
   let unsubscribe = null;
+  let finishPromise = null;
+  let destroyed = false;
 
   function disposePage() {
     page?.destroy?.();
@@ -28,7 +31,7 @@ export function createApp(root) {
       await recorder.start({
         onLevel: (level) => page?.updateLevel?.(level),
         onTime: (seconds) => page?.updateTime?.(seconds),
-        onAutoStop: (recording) => finishRecording(recording),
+        onAutoStop: (recording) => void finishRecording(recording),
       });
       store.setState({ recordingStatus: "recording" });
       page?.setRecordingStatus?.("recording");
@@ -43,23 +46,83 @@ export function createApp(root) {
   async function stopRecording() {
     if (!recorder) return;
     const recording = await recorder.stop();
-    finishRecording(recording);
+    await finishRecording(recording);
   }
 
   function finishRecording(recording) {
+    if (finishPromise) return finishPromise;
+    finishPromise = validateRecording(recording).finally(() => {
+      finishPromise = null;
+    });
+    return finishPromise;
+  }
+
+  async function validateRecording(recording) {
     recorder = null;
-    if (!recording || recording.duration < MIN_RECORDING_SECONDS) {
+    if (
+      !recording ||
+      recording.duration < MIN_RECORDING_SECONDS ||
+      !recording.blob ||
+      recording.blob.size === 0
+    ) {
+      if (recording?.url) URL.revokeObjectURL(recording.url);
       store.setState({
         recordingStatus: "idle",
         recording: null,
-        error: `請至少錄製 ${MIN_RECORDING_SECONDS} 秒，讓聲音肖像有足夠線索。`,
+        error:
+          recording?.duration >= MIN_RECORDING_SECONDS
+            ? "沒有收到有效的錄音資料，請檢查麥克風後重新錄製。"
+            : `請至少錄製 ${MIN_RECORDING_SECONDS} 秒，讓聲音肖像有足夠線索。`,
+      });
+      return;
+    }
+
+    store.setState({
+      recordingStatus: "validating",
+      recording,
+      error: "",
+    });
+
+    let audioBuffer;
+    try {
+      audioBuffer = await decodeAudioBlob(recording.blob);
+    } catch (error) {
+      console.error(error);
+      URL.revokeObjectURL(recording.url);
+      if (destroyed) return;
+      store.setState({
+        recordingStatus: "idle",
+        recording: null,
+        error: "這段錄音無法讀取，請重新錄製或改用最新版瀏覽器。",
+      });
+      return;
+    }
+
+    if (destroyed) {
+      URL.revokeObjectURL(recording.url);
+      return;
+    }
+
+    const quality = assessAudioQuality(audioBuffer);
+    if (!quality.valid) {
+      URL.revokeObjectURL(recording.url);
+      store.setState({
+        recordingStatus: "idle",
+        recording: null,
+        error: "這段錄音沒有可用的聲音資料，請檢查麥克風後重新錄製。",
       });
       return;
     }
 
     store.setState({
       recordingStatus: "ready",
-      recording,
+      recording: {
+        ...recording,
+        audioBuffer,
+        qualityWarning: quality.lowSignal
+          ? "錄音訊號偏小。你仍可繼續分析，或靠近麥克風後重新錄製。"
+          : "",
+      },
       error: "",
     });
   }
@@ -72,7 +135,8 @@ export function createApp(root) {
     await nextPaint();
 
     try {
-      const audioBuffer = await decodeAudioBlob(recording.blob);
+      const audioBuffer =
+        recording.audioBuffer || (await decodeAudioBlob(recording.blob));
       page?.setProgress?.(24, "正在拆解聲音的光譜");
       const portrait = await analyzeVoice(audioBuffer, ({ progress, label }) => {
         page?.setProgress?.(24 + Math.round(progress * 0.58), label);
@@ -128,11 +192,15 @@ export function createApp(root) {
 
   return {
     start() {
+      destroyed = false;
       unsubscribe = store.subscribe(render);
       render(store.getState());
     },
     destroy() {
+      destroyed = true;
       recorder?.cancel();
+      const recording = store.getState().recording;
+      if (recording?.url) URL.revokeObjectURL(recording.url);
       disposePage();
       unsubscribe?.();
     },
