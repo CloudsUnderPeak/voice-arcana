@@ -222,7 +222,9 @@
 }
 
 .result-actions {
-  display: block;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 240px));
+  gap: 12px;
   margin-top: clamp(12px, 2vh, 20px);
 }
 
@@ -616,10 +618,12 @@
   }
 
   .result-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     margin-top: 5px;
   }
 
   .result-actions .button {
+    width: 100%;
     min-height: 36px;
     padding: 0 18px;
     font-size: 0.68rem;

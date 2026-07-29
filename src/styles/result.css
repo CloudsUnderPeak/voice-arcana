@@ -335,6 +335,23 @@
   margin-top: 45px;
 }
 
+.button--share {
+  border-color: var(--gold-bright);
+  background: transparent;
+}
+
+.button--share:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.share-status {
+  min-height: 1.4em;
+  margin: 8px 0 0;
+  color: var(--gold);
+  font-size: 0.68rem;
+}
+
 .reading-detail {
   display: grid;
   grid-template-columns: 1.2fr 0.8fr;

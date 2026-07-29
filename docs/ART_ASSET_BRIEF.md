@@ -86,7 +86,7 @@
 
 ### 8. 社群分享圖與結果卡外框
 
-本功能尚未在 MVP 實作。確定要做本機 PNG 匯出後，再提供：
+本機 PNG 匯出已使用 Canvas 版面實作；若要替換為正式美術外框，再提供：
 
 - `share-frame-portrait.svg`：1080 × 1350。
 - `share-frame-story.svg`：1080 × 1920。

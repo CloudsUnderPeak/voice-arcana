@@ -82,6 +82,8 @@ domain → utils
 
 原始 sample、Blob 與 AudioBuffer 不可送入 `fetch`、XHR、WebSocket、Beacon 或持久化儲存。
 
+結果分享使用固定 1080 × 1350 的 Canvas 在本機重繪牌面、六軸與提問，再以 `canvas.toBlob("image/png")` 產生暫時的 Object URL 觸發下載。完成後立即撤銷 URL；匯出流程不讀取原始 sample、Blob 或 AudioBuffer。
+
 ## 5. 錄音生命週期
 
 - 優先 MIME：WebM Opus、Ogg Opus、MP4、WebM；以 `MediaRecorder.isTypeSupported` 選擇。
@@ -113,6 +115,7 @@ M1 目標：
   `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'none'; object-src 'none'; base-uri 'none'`
 - 不載入外部字型，以系統字型維持零第三方請求。
 - 不把牌卡分數宣稱為生物特徵辨識結果。
+- 分享圖必須保留創意詮釋限制與本機處理聲明，且不得含原始音訊或可還原聲音的資料。
 - 部署前以 Network 與 CSP `connect-src 'none'` 驗證無外傳。
 
 ## 8. 測試策略

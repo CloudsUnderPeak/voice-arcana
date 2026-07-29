@@ -1,5 +1,6 @@
 import { renderCardArt } from "../../ui/card-art.js";
 import { bindPublicAssetFallbacks } from "../../ui/image-fallback.js";
+import { downloadResultImage } from "../../ui/result-image.js";
 import { siteHeader } from "../../ui/site-header.js";
 
 export function mountResultPage(root, analysis, actions) {
@@ -35,23 +36,50 @@ export function mountResultPage(root, analysis, actions) {
 
           <div class="result-actions">
             <button type="button" class="button button--light" data-action="reset">再錄一次</button>
+            <button type="button" class="button button--share" data-action="share">分享結果</button>
           </div>
+          <p class="share-status" data-share-status role="status" aria-live="polite"></p>
         </section>
       </main>
     </div>
   `;
 
   const resetButton = root.querySelector("[data-action='reset']");
+  const shareButton = root.querySelector("[data-action='share']");
+  const shareStatus = root.querySelector("[data-share-status]");
+  const artwork = root.querySelector(".arcana-card");
   const destroyArtworkFallbacks = bindPublicAssetFallbacks(root);
 
   resetButton.addEventListener("click", actions.onReset);
+  shareButton.addEventListener("click", shareResult);
 
   return {
     destroy() {
       resetButton.removeEventListener("click", actions.onReset);
+      shareButton.removeEventListener("click", shareResult);
       destroyArtworkFallbacks();
     },
   };
+
+  async function shareResult() {
+    if (shareButton.disabled) return;
+    shareButton.disabled = true;
+    shareButton.setAttribute("aria-busy", "true");
+    shareButton.firstChild.textContent = "正在產生圖片";
+    shareStatus.textContent = "";
+
+    try {
+      await downloadResultImage(analysis, artwork);
+      shareStatus.textContent = "分享圖片已下載，可前往其他平台貼文。";
+    } catch (error) {
+      console.error(error);
+      shareStatus.textContent = error?.message || "分享圖片下載失敗，請稍後再試。";
+    } finally {
+      shareButton.disabled = false;
+      shareButton.removeAttribute("aria-busy");
+      shareButton.firstChild.textContent = "分享結果";
+    }
+  }
 }
 
 function renderAxis(axis, index) {

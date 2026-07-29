@@ -117,10 +117,31 @@ try {
   );
   assert(fixture.querySelectorAll(".portrait-axis").length === 6, "six result axes");
   assert(fixture.textContent.includes("守夜人"), "result card title");
+  assert(fixture.querySelector("[data-action='share']"), "result share action");
   const cardArtwork = fixture.querySelector(".arcana-card");
   assert(cardArtwork, "result card art");
   await waitForImage(cardArtwork);
   assert(cardArtwork.naturalWidth > 0, "result card artwork loaded");
+  if (searchParams.has("share")) {
+    let downloadName = "";
+    let downloadBlob = null;
+    const originalClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function captureDownload() {
+      downloadName = this.download;
+      downloadBlob = fetch(this.href).then((response) => response.blob());
+    };
+    fixture.querySelector("[data-action='share']").click();
+    await waitFor(() => fixture.querySelector("[data-share-status]").textContent);
+    HTMLAnchorElement.prototype.click = originalClick;
+    assert(downloadName === "voice-arcana-night-keeper.png", "share image download");
+    const png = new DataView(await (await downloadBlob).arrayBuffer());
+    assert(png.getUint32(16) === 1080, "share image width");
+    assert(png.getUint32(20) === 1350, "share image height");
+    assert(
+      fixture.querySelector("[data-share-status]").textContent.includes("已下載"),
+      "share image success status",
+    );
+  }
 
   status.textContent = "PASS";
   if (visualMode) {
@@ -199,5 +220,21 @@ function waitForImage(image) {
   return new Promise((resolve) => {
     image.addEventListener("load", resolve, { once: true });
     image.addEventListener("error", resolve, { once: true });
+  });
+}
+
+function waitFor(predicate, timeout = 3000) {
+  const startedAt = performance.now();
+  return new Promise((resolve, reject) => {
+    function check() {
+      if (predicate()) {
+        resolve();
+      } else if (performance.now() - startedAt >= timeout) {
+        reject(new Error("browser action timed out"));
+      } else {
+        window.setTimeout(check, 20);
+      }
+    }
+    check();
   });
 }
