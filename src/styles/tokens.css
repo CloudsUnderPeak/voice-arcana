@@ -1,0 +1,24 @@
+:root {
+  color-scheme: dark;
+  --ink-950: #120d19;
+  --ink-925: #17101f;
+  --ink-900: #1e1428;
+  --ink-850: #271831;
+  --ink-800: #34203e;
+  --paper: #f3dfda;
+  --paper-soft: #d8bcc2;
+  --gold: #bd806d;
+  --gold-bright: #e5ae99;
+  --coral: #e98170;
+  --mist: #aa8fa7;
+  --plum: #5d3c68;
+  --mauve: #8f617c;
+  --line: rgba(197, 133, 111, 0.62);
+  --line-soft: rgba(197, 133, 111, 0.22);
+  --surface-glass: rgba(31, 20, 41, 0.78);
+  --shadow: 0 34px 100px rgba(4, 1, 8, 0.5);
+  --header-height: 72px;
+  --serif: "Noto Serif TC", "Iowan Old Style", "Songti TC", "PMingLiU", serif;
+  --sans: Inter, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --content: 1200px;
+}

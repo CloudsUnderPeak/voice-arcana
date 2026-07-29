@@ -1,0 +1,132 @@
+.processing-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 82px);
+  padding: 70px 24px;
+  text-align: center;
+}
+
+.processing-page::before,
+.processing-page::after {
+  position: absolute;
+  width: min(28vw, 360px);
+  height: min(42vh, 420px);
+  border: 1px solid var(--line-soft);
+  content: "";
+  opacity: 0.42;
+  transform: rotate(45deg);
+}
+
+.processing-page::before {
+  top: -260px;
+  left: -180px;
+}
+
+.processing-page::after {
+  right: -180px;
+  bottom: -260px;
+}
+
+.processing-sigil {
+  position: relative;
+  width: 210px;
+  height: 210px;
+  margin-bottom: 44px;
+}
+
+.processing-sigil__ring {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--line);
+  border-radius: 46% 46% 50% 50%;
+  animation: sigil-pulse 2.4s ease-in-out infinite;
+}
+
+.processing-sigil__ring:nth-child(2) {
+  inset: 28px;
+  animation-delay: -0.8s;
+}
+
+.processing-sigil__ring:nth-child(3) {
+  inset: 56px;
+  animation-delay: -1.6s;
+}
+
+.processing-sigil i {
+  position: absolute;
+  inset: 90px;
+  background: var(--coral);
+  box-shadow: 0 0 45px rgba(233, 129, 112, 0.58);
+  transform: rotate(45deg);
+}
+
+.processing-page h1 {
+  margin-bottom: 14px;
+  font-size: clamp(2.2rem, 5vw, 4rem);
+}
+
+.processing-label {
+  min-height: 28px;
+  margin-bottom: 38px;
+  color: var(--mist);
+  letter-spacing: 0.08em;
+}
+
+.progress-track {
+  width: min(640px, 85vw);
+  height: 2px;
+  background: var(--line-soft);
+}
+
+.progress-track span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--coral));
+  box-shadow: 0 0 14px rgba(233, 129, 112, 0.44);
+  transition: width 450ms ease;
+}
+
+.progress-meta {
+  display: flex;
+  justify-content: space-between;
+  width: min(640px, 85vw);
+  margin-top: 12px;
+  color: var(--gold);
+  font-size: 0.66rem;
+  letter-spacing: 0.09em;
+}
+
+.processing-steps {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 80px;
+  color: rgba(217, 201, 173, 0.34);
+  font-size: 0.68rem;
+  letter-spacing: 0.13em;
+}
+
+.processing-steps span.is-active {
+  color: var(--gold);
+}
+
+.processing-steps i {
+  width: 50px;
+  height: 1px;
+  background: var(--line-soft);
+}
+
+@keyframes sigil-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+}
