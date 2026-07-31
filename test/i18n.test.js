@@ -38,7 +38,7 @@ test("detectLocale prefers the URL parameter, then browser language", () => {
   assert.equal(detectLocale("", "en-US"), "en");
   assert.equal(detectLocale("", "ja-JP"), "en");
   assert.equal(detectLocale("", "zh-TW"), "zh-Hant");
-  assert.equal(detectLocale(undefined, undefined), "zh-Hant");
+  assert.equal(detectLocale(null, null), "zh-Hant");
 });
 
 test("localizeCard merges locale copy onto domain card data", () => {
