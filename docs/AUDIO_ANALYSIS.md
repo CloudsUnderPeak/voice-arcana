@@ -6,31 +6,33 @@
 
 ## 2. 目前量測
 
+錄音一律以固定 16 kHz 解碼（`OfflineAudioContext`，失敗時退回裝置取樣率的 `AudioContext`），讓同一段錄音在不同裝置上得到一致的樣本序列與頻率解析度，並與合成訊號測試對齊。人聲的 70–400 Hz 基頻與 8 kHz 以下頻譜特徵在此取樣率下皆可涵蓋。
+
 ### 時域
 
 - **Active RMS**：高於最低活動門檻的 frame 均方根音量。
 - **RMS variation**：活動 frame 音量的變異係數。
 - **Dynamic range proxy**：RMS 第 85 百分位與第 15 百分位差，相對於高百分位正規化。
-- **Zero-crossing rate**：波形穿越零點的比例。
+- **Zero-crossing rate**：活動 frame 內波形穿越零點的比例。停頓段的麥克風底噪過零率極高，混入會虛增銳利與沙啞軸，因此只統計高於活動門檻的 frame。
 - **Active ratio**：高於最低 RMS 門檻的 frame 比例。
 
 ### 頻域
 
 - 取最多 96 個均勻分散的活動 frame，每幀 1024 samples。
-- Hann window 後執行專案內 radix-2 FFT。
-- **Spectral centroid**：頻率以 magnitude 加權的重心。
-- **Spectral rolloff**：累積 magnitude 達 85% 時的頻率，用來補充音色輪廓。
-- **High-frequency ratio**：3kHz 以上 magnitude 佔比。
-- **Spectral flatness**：magnitude 幾何平均 / 算術平均。
+- Hann window 後執行專案內 radix-2 FFT，統計一律以 **power（magnitude²）加權**：線性 magnitude 會被寬頻噪音地板抬高，power 加權較貼近能量分佈與聽感。
+- **Spectral centroid / rolloff**：限制在 150 Hz–5 kHz 語音帶，並逐幀扣除頻帶中位數功率作為噪音地板後計算。氣息與環境噪音是攤在整個頻帶的地毯，不扣除會把沙啞、氣息聲或吵雜錄音誤判為明亮。centroid 跨 frame 取 **35 百分位**（rolloff 取中位數、變異用四分位距）而非平均：擦音（s、sh、x…）frame 的重心在 3–5 kHz，是強烈右偏的離群值；中文等擦音密度高的語言，擦音 frame 可能占近半，連中位數都會被推高，低分位才能穩定瞄準有聲 frame 的核心明暗。
+- **High-frequency ratio**：3 kHz 以上 power 佔比（全頻帶）。
+- **Band spectral flatness**：300 Hz–5 kHz 語音帶內的 power 幾何平均 / 算術平均。全頻帶 flatness 會被高頻空 bin 的噪音地板主導，實際上變成訊噪比量測而非音色質地。
 - **Centroid variation**：各活動幀頻譜重心的變異係數。
 
-### 音高
+### 音高與週期性
 
-- 取最多 32 個均勻分散的活動 frame，每幀 2048 samples。
+- 取最多 48 個均勻分散的活動 frame，每幀 1024 samples（64 ms ≈ 最低基頻 70 Hz 的 4 個週期）。frame 太長會讓語調起伏在 frame 內移動基頻、拉低自相關，把表現力誤判為沙啞。
 - 以 70–400 Hz 範圍的正規化自相關估計基頻，不使用遠端模型。
 - **Median pitch**：有效基頻估計的中位數；只描述本次錄音的音高輪廓。
 - **Pitch variation**：有效基頻估計的變異係數。
 - **Pitch confidence**：自相關強度與可估計 frame 比例的組合，只控制音高特徵的權重。
+- **Periodicity**：所有活動 frame 最佳自相關的 75 百分位，作為 HNR（諧噪比）的代理值。取高分位而非平均，是因為子音與擦音 frame 本來就非週期，平均會把乾淨但子音多的聲音誤判為沙啞；乾淨聲音的高分位 frame 仍接近 1，沙啞聲音連最好的 frame 都上不去。對應關係為 Praat 的 HNR = 10·log10(r / (1 − r))：健康成人語音 HNR 通常 ≥ 15–20 dB（r ≥ 0.97），HNR < 10 dB（r < 0.91）即明顯氣息聲或沙啞。
 
 ## 3. 六軸轉譯
 
@@ -38,14 +40,14 @@
 
 | 軸 | 主要代理值 | 解讀限制 |
 |---|---|---|
-| 低沉 ↔ 明亮 | spectral centroid、高頻比例、基頻 | 基頻只描述聲線表現，不推論性別、年齡或身分 |
-| 柔和 ↔ 銳利 | 明亮度、rolloff、flatness、ZCR | 子音比例與發音內容會影響 |
+| 低沉 ↔ 明亮 | 基頻（對數尺度 85–300 Hz，權重隨音高信心提高、最高 50%）、噪音地板扣除後、跨 frame 取 35 百分位的 spectral centroid（對數尺度 220–1200 Hz） | 基頻只描述聲線表現，不推論性別、年齡或身分 |
+| 柔和 ↔ 銳利 | rolloff、高頻比例、ZCR | 子音比例與發音內容會影響 |
 | 沉穩 ↔ 跳躍 | RMS variation、centroid variation、pitch variation | 是本段朗讀起伏，不是人格 |
-| 親密 ↔ 開闊 | centroid variation、dynamic range、pitch variation、明亮度 | 只是假設性空間感代理，無法真正估計距離/殘響 |
-| 乾淨 ↔ 沙啞 | flatness、ZCR | 背景噪音會被誤認為粗糙質地 |
-| 平靜 ↔ 充滿能量 | active RMS、dynamic range、跳躍度、active ratio | 絕對音量只占 10%；仍可能間接受活動門檻與裝置增益影響 |
+| 親密 ↔ 開闊 | dynamic range、centroid variation、pitch variation | 只是假設性空間感代理，無法真正估計距離/殘響 |
+| 乾淨 ↔ 沙啞 | aperiodicity（1 − periodicity，權重 60%）、band flatness、ZCR | 持續的強背景噪音仍會被誤認為粗糙質地；量測的是這段錄音的表現，不是聲帶健康 |
+| 平靜 ↔ 充滿能量 | active ratio、dynamic range、跳躍度、active RMS | 絕對音量只占 12%；仍可能間接受活動門檻與裝置增益影響 |
 
-門檻與確切權重定義在 `src/domain/voice-portrait/analyze-voice.js`。任何調整都要以合成訊號與多裝置測試記錄支持。
+門檻與確切權重定義在 `src/domain/voice-portrait/analyze-voice.js`。正規化範圍依三個來源校準：(1) 語音聲學文獻的典型值（HNR 臨床門檻、成人基頻範圍、flatness 的純音/噪音端點）；(2) `tools/voice-calibration/axis-calibration.mjs` 的合成語音測試台——以可控 HNR、語調、音節節奏、頻譜傾斜與共振峰的 14 種聲型驗證六軸分佈合理、八張牌可達；(3) 公開真人朗讀樣本（Open Speech Repository 等 6 位男女聲）——真實連續朗讀的 rmsVariation 約 0.65–0.9、dynamicRange 約 0.8–0.9，遠高於合成訊號，跳躍/開闊/能量軸的範圍以此為準，否則所有真人錄音會在這幾軸飽和。音高變異數會先剔除偏離中位數 1.5 倍以上的估計，避免自相關八度錯誤把穩定聲線誤判為大起伏。任何門檻調整都必須重跑測試台並確認 `npm test` 的合成訊號測試。
 
 即時錄音頁的強度計使用另一條感知顯示曲線，只提供操作回饋，不會把畫面上的強度值寫入六軸分析。
 
@@ -57,9 +59,9 @@
 [brightness, sharpness, bounce, openness, raspiness, energy]
 ```
 
-計算使用者向量與八個原型的 Euclidean distance，取距離最小者。匹配度只表示距離相近程度，不代表統計機率或科學信心。
+計算使用者向量與八個原型的 Euclidean distance，取距離最小者。匹配度（affinity）以牌組空間的實際直徑（最遠兩張原型的距離）正規化，而不是單位立方體對角線 √6——後者會讓所有結果擠在高分區失去區別度。匹配度只表示距離相近程度，不代表統計機率或科學信心。
 
-八張牌的向量與文案位於 `src/domain/cards/card-catalog.js`。
+八張牌的向量與文案位於 `src/domain/cards/card-catalog.js`。原型向量必須落在六軸實際可達的分佈範圍內：部分軸之間存在物理耦合（例如氣息噪音會同時推高沙啞與頻譜亮度、動態起伏會同時推高跳躍與能量），把原型放在耦合矛盾的角落會讓該牌永遠抽不到。可達性以 `tools/voice-calibration/axis-calibration.mjs` 驗證。
 
 目前八個原型刻意保留至少 `0.30` 的兩兩距離，降低相近向量集中落在同一張牌的情況。這不是保證八張牌平均出現；實際分布仍需用不同裝置與朗讀者錄音校準。
 

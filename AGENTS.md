@@ -9,9 +9,9 @@
 - 使用者流程、文案、互動、驗收條件：`docs/SPEC_BEHAVIOR.md`
 - 架構、模組邊界、狀態與效能限制：`docs/SPEC_TECHNICAL.md`
 - 聲學特徵、分數正規化與牌卡映射：`docs/AUDIO_ANALYSIS.md`
-- 範圍與里程碑：`docs/PRODUCT_PLAN.md`
-- 色彩、排版與元件語言：`docs/DESIGN_SYSTEM.md`
-- 建置、CI 與 GitHub Pages：`docs/DEPLOYMENT.md`
+- 產品定位、範圍與里程碑：`docs/SPEC_BEHAVIOR.md` §1 與 `docs/SPEC_TECHNICAL.md` §10–12
+- 色彩、排版與元件語言：`docs/SPEC_BEHAVIOR.md` §9 與 `docs/ART_ASSET_BRIEF.md`
+- 建置、CI 與 GitHub Pages：`README.zh-TW.md` 的「部署到 GitHub Pages」章節
 
 行為與技術同時改變時，兩份規格必須保持一致。
 
@@ -32,12 +32,13 @@ pages/            組合畫面、綁定 DOM 事件
 app/              流程協調與 session 狀態
 domain/           純分析、牌卡規則、產品模型
 infrastructure/   MediaRecorder / Web Audio 等瀏覽器介接
+i18n/             語系字典與 t()/localizeCard() 運行時
 ui/               跨頁共用展示元件
 styles/           tokens、基礎、頁面與響應式樣式
 utils/            無領域語意的純函式
 ```
 
-- `domain/` 不可直接操作 DOM。
+- `domain/` 不可直接操作 DOM，也不可含 UI 文案；新文案一律進 `src/i18n/locales/`，且兩個語系必須同步（測試會驗證 key 對齊）。
 - `pages/` 不可直接實作 FFT、錄音生命週期或牌卡距離演算法。
 - `infrastructure/` 回傳瀏覽器資源的封裝結果，不決定牌意或 UI 文案。
 - 先以小而可測的純函式解決問題，避免建立只使用一次的抽象層。
@@ -51,7 +52,7 @@ npm test
 npm run build
 ```
 
-也可使用 `make install`、`make check`、`make build` 與 `make preview`。GitHub Pages 部署規則以 `docs/DEPLOYMENT.md` 為準。
+也可使用 `make install`、`make check`、`make build` 與 `make preview`。GitHub Pages 部署規則以 `README.zh-TW.md` 的「部署到 GitHub Pages」章節為準。
 
 涉及錄音時，除自動測試外至少手動驗證：
 

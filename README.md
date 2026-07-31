@@ -1,94 +1,82 @@
 # Voice Arcana
 
-一個 local-first 的聲音肖像網頁實驗。使用者朗讀約一分鐘的短文，瀏覽器會直接分析錄音的時間與頻譜特徵，生成六軸「聲音肖像」，並從八種原創聲音原型中選出當下最接近的一張「聲音牌」。Voice Arcana 不採用傳統塔羅的牌組或占卜系統。
+[繁體中文](README.zh-TW.md)
 
-## Demo
+**[Open the live demo](https://cloudsunderpeak.github.io/voice-arcana/)**
 
-[https://cloudsunderpeak.github.io/voice-arcana/](https://cloudsunderpeak.github.io/voice-arcana/)
+A local-first voice portrait experiment that turns one minute of your voice into an original sound card.
 
-目前已完成可操作的 MVP 骨架：
+Voice Arcana asks you to read a short passage aloud. Right in your browser, it analyzes the temporal and spectral features of the recording, draws a six-axis "sound portrait" — brightness, crispness, liveliness, spaciousness, texture, and energy — and picks the closest of eight original voice archetypes as your card. It borrows the ritual of card reading, not the deck: there is no traditional tarot system or divination involved.
 
-- 裝飾藝術導讀文章與錄音引導
-- 麥克風錄音、60 秒自動停止、錄音試聽
-- 純瀏覽器音訊解碼與 FFT 特徵分析
-- 三段式流程：錄音 → 本機分析進度 → 聲音牌結果
-- 六個聲音維度與八張聲音牌
-- 純瀏覽器 Canvas 產生 1080 × 1350 結果圖，手機可開啟系統分享面板
-- 自製 SVG 牌面、牌意、提問與分析摘要
-- 響應式版面與基本無障礙狀態
+## Why This Project
 
-## 快速開始
+Voice analysis tools usually mean uploading recordings to someone's server. Voice Arcana explores the opposite: everything — recording, decoding, FFT, feature normalization, and card matching — runs inside the browser. Nothing is uploaded, no account exists, and closing the tab releases everything. The project doubles as a working reference for a browser-only audio pipeline: MediaRecorder capture, fixed-rate decoding, Web Worker analysis, and literature-calibrated acoustic features.
 
-需求：Node.js 20.19+ 或 22.12+。
+## How It Feels to Use
+
+1. Read the privacy promise and a one-minute passage about Art Deco.
+2. Tap record; a live level meter follows your voice, and recording stops at 60 seconds.
+3. Preview the take, then send it to local analysis with a progress ritual.
+4. Your sound card is revealed with the six-axis portrait, a reading, and a question for you.
+5. Share a generated result image or a URL that carries only the card id and axis scores.
+
+## Highlights
+
+- **Fully local**: recording, analysis, and the share image never leave the device; the deployed site ships a CSP with `connect-src 'none'` as a technical guardrail.
+- **Grounded acoustics**: the six axes build on spectral centroid, HNR-proxy periodicity, zero-crossing rate, and dynamics, calibrated against speech-acoustics literature, a synthetic-voice bench, and real recordings.
+- **Eight original archetypes**: each card has its own artwork, reading, and question, matched by six-dimensional distance.
+- **Bilingual**: Traditional Chinese and English, auto-detected with a one-tap toggle; share links and OG pages follow the language.
+- **Shareable without a backend**: a Canvas-drawn result image, a stateless result URL, and pre-rendered per-card OG pages for social previews.
+- **No framework**: native ES modules with a small hand-rolled store and i18n; Vite is used only for dev serving and static bundling.
+
+## Who It Is For
+
+- People curious about voice, storytelling, interactive art, or gentle self-reflection.
+- Curators and design teams needing an exhibition or workshop piece with zero data liability.
+- Frontend developers who want a worked example of a browser-only audio pipeline.
+
+It is explicitly **not** a tool for speech therapy, medical diagnosis, speaker identification, or voiceprint verification.
+
+## Quick Start
+
+Requires Node.js 22.12+.
 
 ```bash
 npm install
-npm run dev
+npm run dev      # development server
+npm test         # domain and state-machine tests
+npm run check    # syntax check across src/test/tools + tests
+npm run build    # static build into dist/ (with CSP meta)
+npm run preview  # preview the production build
 ```
 
-```bash
-npm test       # 領域函式測試
-npm run build  # 產生 dist/ 靜態檔
-npm run preview
-```
+`dist/` deploys to any static host — no application backend. With GNU Make installed, the same commands are available as `make dev`, `make build`, and so on (see [Makefile](Makefile)).
 
-`dist/` 可以部署到任何靜態主機，不需要應用程式後端。
+## Documentation
 
-也可以透過 Make 使用相同流程：
-
-```bash
-make install
-make dev
-make test
-make build
-make preview
-```
-
-## GitHub Pages
-
-專案已包含 Pull Request CI 與 GitHub Pages 自動部署。將 repository 的 **Settings → Pages → Source** 設為 **GitHub Actions** 後，每次 push 到 `master` 都會測試、建置並部署 `dist/`。
-
-完整設定與首次部署步驟請見 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)。
-
-## 隱私與產品邊界
-
-- 錄音透過 `MediaRecorder` 留在目前分頁的記憶體。
-- 解碼、FFT、特徵正規化與牌卡匹配皆在瀏覽器完成。
-- 沒有 API、資料庫、登入、cookie 或分析追蹤。
-- 重整或關閉分頁後，錄音與分析結果不會被保存。
-- 聲音肖像是創意詮釋，不是人格、情緒、性別、健康或身分診斷。
-
-## 專案結構
+Start at [docs/SPEC_INDEX.md](docs/SPEC_INDEX.md) (documentation is written in Traditional Chinese). Product scope, behavior, and acceptance live in [docs/SPEC_BEHAVIOR.md](docs/SPEC_BEHAVIOR.md); architecture, milestones, and risks in [docs/SPEC_TECHNICAL.md](docs/SPEC_TECHNICAL.md); the acoustic method and its limits in [docs/AUDIO_ANALYSIS.md](docs/AUDIO_ANALYSIS.md); art delivery specs in [docs/ART_ASSET_BRIEF.md](docs/ART_ASSET_BRIEF.md).
 
 ```text
-.
-├─ docs/                         產品計劃、行為與技術規格
-├─ src/
-│  ├─ app/                       session 狀態與體驗流程協調
-│  ├─ domain/
-│  │  ├─ cards/                  八張牌資料與向量匹配
-│  │  └─ voice-portrait/         FFT 與六軸分析
-│  ├─ infrastructure/audio/      錄音與 AudioBuffer 解碼
-│  ├─ pages/                     錄音、處理、結果三個頁面
-│  ├─ styles/                    token、基礎、頁面、響應式
-│  ├─ ui/                        共用頁首與 SVG 牌面
-│  └─ utils/                     純數學工具
-├─ test/                         Node 端領域測試
-├─ AGENTS.md                     專案協作守則
-├─ index.html
-└─ package.json
+src/
+├─ app/                  session state and experience flow coordination
+├─ domain/               card vectors, FFT, and six-axis analysis (no UI copy)
+├─ i18n/                 locale dictionaries (zh-Hant / en) and runtime
+├─ infrastructure/audio/ recording and AudioBuffer decoding
+├─ pages/                experience, processing, and result pages
+├─ ui/                   shared header, card art, share image
+└─ styles/               tokens, base, pages, responsive rules
 ```
 
-架構採用瀏覽器原生 ES Modules；Vite 只負責本機開發與靜態打包，不參與正式執行時的聲音處理。
+## Privacy and Boundaries
 
-## 文件入口
+- Recordings stay in the tab's memory via `MediaRecorder`; decoding, FFT, normalization, and card matching all happen in the browser.
+- No API, database, login, cookies, or analytics tracking; refreshing or closing the tab releases the recording.
+- Share URLs carry only the card id and six axis scores — never audio or voice-recoverable data.
+- The sound portrait is a creative interpretation, not a diagnosis of personality, emotion, gender, health, or identity.
 
-從 [docs/SPEC_INDEX.md](docs/SPEC_INDEX.md) 開始閱讀。產品階段、驗收條件與風險請見 [docs/PRODUCT_PLAN.md](docs/PRODUCT_PLAN.md)；聲學計算與限制請見 [docs/AUDIO_ANALYSIS.md](docs/AUDIO_ANALYSIS.md)。正式美術交付格式與檔名請見 [docs/ART_ASSET_BRIEF.md](docs/ART_ASSET_BRIEF.md)。
+## Known Limitations
 
-## 已知限制
-
-- MVP 的「親密 ↔ 開闊」與「乾淨 ↔ 沙啞」是多項聲學代理值的創意轉譯，不能視為專業音色診斷。
-- 麥克風、房間反射、背景噪音與朗讀距離都會改變結果。
-- 目前只做單次 session，不保存歷史紀錄；分享圖只在瀏覽器本機產生，支援時交給系統分享面板，否則下載圖片。
-- 目前牌面為程式生成的共用視覺系統；每張牌的獨立插畫與動態是後續 M3 工作。
-- 現階段背景、裝飾與牌面都是 CSS／內嵌 SVG 佔位素材，不是正式美術檔。
+- The "Intimate–Expansive" and "Clear–Husky" axes are creative translations of acoustic proxies, not professional timbre diagnostics.
+- Microphones, room reflections, background noise, and reading distance all shift the result.
+- Single-session only: no history is stored; the share image is generated locally and saved via long-press (or right-click) from the overlay.
+- The current card faces are a shared generated visual system; per-card illustrations and motion are future milestone work.
