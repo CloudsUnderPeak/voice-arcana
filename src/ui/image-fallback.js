@@ -1,14 +1,11 @@
-export function bindPublicAssetFallbacks(root) {
-  const images = [...root.querySelectorAll("img[data-public-fallback]")];
+// Mark failed artwork loads with is-missing so CSS can show a fallback visual;
+// no second source is attempted (tools/dev-server maps public/ onto the site
+// root, so production and development paths match).
+export function bindArtworkFallbacks(root) {
+  const images = [...root.querySelectorAll("img[data-artwork]")];
   const bindings = images.map((image) => {
     const handleError = () => {
-      if (image.dataset.fallbackAttempted === "true") {
-        image.classList.add("is-missing");
-        return;
-      }
-
-      image.dataset.fallbackAttempted = "true";
-      image.src = image.dataset.publicFallback;
+      image.classList.add("is-missing");
     };
 
     image.addEventListener("error", handleError);

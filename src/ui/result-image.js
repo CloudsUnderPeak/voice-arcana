@@ -1,3 +1,5 @@
+import { axisLabels, t } from "../i18n/i18n.js";
+
 const IMAGE_WIDTH = 1080;
 const IMAGE_HEIGHT = 1350;
 const CARD_ASPECT_RATIO = 2 / 3;
@@ -14,7 +16,7 @@ const COLORS = Object.freeze({
   line: "rgba(197, 133, 111, 0.36)",
 });
 
-export async function createResultImageFile(analysis, artwork) {
+export async function createResultImageFile(analysis, artwork, shareUrl = "") {
   await Promise.all([
     document.fonts?.ready,
     waitForArtwork(artwork),
@@ -26,60 +28,21 @@ export async function createResultImageFile(analysis, artwork) {
 
   const context = canvas.getContext("2d");
   if (!context) {
-    throw new Error("此瀏覽器無法建立分享圖片。");
+    throw new Error(t("resultImage.cannotCreate"));
   }
 
-  drawResultImage(context, analysis, artwork);
+  drawResultImage(context, analysis, artwork, shareUrl);
   const blob = await canvasToBlob(canvas);
   return new File([blob], resultImageFilename(analysis.card), {
     type: "image/png",
   });
 }
 
-export function canShareResultImage(file, shareNavigator = globalThis.navigator) {
-  if (
-    typeof shareNavigator?.share !== "function"
-    || typeof shareNavigator?.canShare !== "function"
-  ) {
-    return false;
-  }
-
-  try {
-    return shareNavigator.canShare({ files: [file] });
-  } catch {
-    return false;
-  }
-}
-
-export function shareResultImage(
-  file,
-  card,
-  shareNavigator = globalThis.navigator,
-) {
-  return shareNavigator.share({
-    files: [file],
-    title: `Voice Arcana｜${card.name}`,
-    text: `我的聲音牌是「${card.name}」。`,
-  });
-}
-
-export function downloadResultImage(file) {
-  const url = URL.createObjectURL(file);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = file.name;
-  link.hidden = true;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
-}
-
 export function resultImageFilename(card) {
   return `voice-arcana-${card.id}.png`;
 }
 
-function drawResultImage(context, analysis, artwork) {
+function drawResultImage(context, analysis, artwork, shareUrl) {
   const { card, portrait } = analysis;
   drawBackground(context, card.accent);
   drawFrame(context);
@@ -87,37 +50,66 @@ function drawResultImage(context, analysis, artwork) {
   context.fillStyle = COLORS.gold;
   context.font = '700 20px Inter, "Noto Sans TC", sans-serif';
   context.letterSpacing = "5px";
-  context.fillText("VOICE ARCANA · YOUR SOUND PORTRAIT", 76, 89);
+  context.fillText(t("resultImage.banner"), 76, 89);
 
   drawCard(context, artwork, card);
 
   context.fillStyle = COLORS.gold;
   context.font = '700 18px Inter, "Noto Sans TC", sans-serif';
   context.letterSpacing = "3px";
-  context.fillText(`SOUND CARD ${card.number}`, 540, 186);
+  context.fillText(t("resultImage.soundCard", { number: card.number }), 540, 186);
 
   context.fillStyle = COLORS.paper;
   context.font = '500 34px "Noto Serif TC", "PMingLiU", serif';
   context.letterSpacing = "2px";
-  context.fillText("你的聲音牌", 540, 243);
+  context.fillText(t("resultImage.yourCard"), 540, 243);
 
   context.fillStyle = card.accent || COLORS.coral;
-  context.font = '500 78px "Noto Serif TC", "PMingLiU", serif';
-  context.letterSpacing = "5px";
+  context.letterSpacing = latinAware(card.name, "5px", "2px");
+  fitFontSize(
+    context,
+    card.name,
+    (size) => `500 ${size}px "Noto Serif TC", "PMingLiU", serif`,
+    78,
+    IMAGE_WIDTH - 540 - 76,
+    40,
+  );
   context.fillText(card.name, 540, 333);
 
   context.fillStyle = COLORS.goldBright;
-  context.font = '500 24px "Noto Serif TC", "PMingLiU", serif';
-  context.letterSpacing = "3px";
-  drawWrappedText(context, card.tagline, 540, 390, 440, 38);
+  context.letterSpacing = latinAware(card.tagline, "3px", "1px");
+  const taglineSize = fitWrappedFontSize(
+    context,
+    card.tagline,
+    (size) => `500 ${size}px "Noto Serif TC", "PMingLiU", serif`,
+    24,
+    440,
+    2,
+    17,
+  );
+  drawWrappedText(context, card.tagline, 540, 390, 440, Math.round(taglineSize * 1.55));
 
-  drawSectionTitle(context, "聲音肖像", 540, 478, 452);
+  drawSectionTitle(context, t("resultImage.portraitTitle"), 540, 478, 452);
+  // Measure the longest axis label for the locale and unify the label column
+  // width so English labels never collide with the tick marks.
+  context.font = '500 18px "Noto Serif TC", "PMingLiU", serif';
+  const labelWidth = Math.min(
+    118,
+    portrait.axes.reduce((widest, axis) => {
+      const labels = axisLabels(axis.id);
+      return Math.max(
+        widest,
+        context.measureText(labels.low).width,
+        context.measureText(labels.high).width,
+      );
+    }, 70) + 8,
+  );
   portrait.axes.forEach((axis, index) => {
-    drawAxis(context, axis, 540, 525 + index * 62, 452);
+    drawAxis(context, axis, 540, 525 + index * 62, 452, labelWidth);
   });
 
   drawQuestion(context, card.question);
-  drawFooter(context);
+  drawFooter(context, shareUrl);
 }
 
 function drawBackground(context, accent) {
@@ -179,8 +171,15 @@ function drawCard(context, artwork, card) {
   context.strokeRect(x + 28, captionY, width - 56, 78);
   context.textAlign = "center";
   context.fillStyle = COLORS.paper;
-  context.font = '500 32px "Noto Serif TC", "PMingLiU", serif';
-  context.letterSpacing = "6px";
+  context.letterSpacing = latinAware(card.name, "6px", "1px");
+  fitFontSize(
+    context,
+    card.name,
+    (size) => `500 ${size}px "Noto Serif TC", "PMingLiU", serif`,
+    32,
+    width - 56 - 28,
+    18,
+  );
   context.fillText(card.name, x + width / 2, captionY + 50);
   context.textAlign = "left";
 }
@@ -214,8 +213,8 @@ function drawSectionTitle(context, title, x, y, width) {
   context.textAlign = "left";
 }
 
-function drawAxis(context, axis, x, y, width) {
-  const labelWidth = 76;
+function drawAxis(context, axis, x, y, width, labelWidth = 76) {
+  const labels = axisLabels(axis.id);
   const trackX = x + labelWidth;
   const trackWidth = width - labelWidth * 2;
   const score = Math.max(0, Math.min(100, Number(axis.score) || 0));
@@ -223,9 +222,9 @@ function drawAxis(context, axis, x, y, width) {
   context.fillStyle = COLORS.soft;
   context.font = '500 18px "Noto Serif TC", "PMingLiU", serif';
   context.letterSpacing = "1px";
-  context.fillText(axis.lowLabel, x, y + 6);
+  context.fillText(labels.low, x, y + 6);
   context.textAlign = "right";
-  context.fillText(axis.highLabel, x + width, y + 6);
+  context.fillText(labels.high, x + width, y + 6);
   context.textAlign = "left";
 
   context.strokeStyle = COLORS.gold;
@@ -247,10 +246,6 @@ function drawAxis(context, axis, x, y, width) {
   context.fillStyle = COLORS.goldBright;
   context.fillRect(-8, -8, 16, 16);
   context.restore();
-
-  context.fillStyle = COLORS.gold;
-  context.font = '700 15px Inter, "Noto Sans TC", sans-serif';
-  context.fillText(String(Math.round(score)).padStart(2, "0"), markerX - 9, y + 31);
 }
 
 function drawQuestion(context, question) {
@@ -268,41 +263,127 @@ function drawQuestion(context, question) {
   context.fillStyle = COLORS.coral;
   context.font = '700 17px Inter, "Noto Sans TC", sans-serif';
   context.letterSpacing = "4px";
-  context.fillText("給你的提問", x + 48, y + 58);
+  context.fillText(t("resultImage.questionLabel"), x + 48, y + 58);
 
   context.fillStyle = COLORS.paper;
-  context.font = '500 38px "Noto Serif TC", "PMingLiU", serif';
-  context.letterSpacing = "2px";
-  drawWrappedText(context, question, x + 48, y + 122, width - 96, 58);
+  context.letterSpacing = latinAware(question, "2px", "1px");
+  const questionSize = fitWrappedFontSize(
+    context,
+    question,
+    (size) => `500 ${size}px "Noto Serif TC", "PMingLiU", serif`,
+    38,
+    width - 96,
+    2,
+    24,
+  );
+  drawWrappedText(context, question, x + 48, y + 122, width - 96, Math.round(questionSize * 1.5));
 }
 
-function drawFooter(context) {
+function drawFooter(context, shareUrl) {
   context.fillStyle = COLORS.gold;
   context.font = '700 18px Inter, "Noto Sans TC", sans-serif';
   context.letterSpacing = "3px";
-  context.fillText("VOICE ARCANA", 76, 1212);
+  context.fillText("VOICE ARCANA", 76, 1196);
+
+  // Referral entry point: viewers of the image can find the experience,
+  // closing the record -> share -> friends-try loop.
+  if (shareUrl) {
+    const urlText = displayShareUrl(shareUrl);
+    context.font = '600 22px Inter, "Noto Sans TC", sans-serif';
+    context.letterSpacing = "1px";
+    const urlWidth = context.measureText(urlText).width;
+
+    context.fillStyle = COLORS.paper;
+    context.letterSpacing = "1px";
+    fitFontSize(
+      context,
+      t("resultImage.cta"),
+      (size) => `700 ${size}px "Noto Sans TC", Inter, sans-serif`,
+      24,
+      IMAGE_WIDTH - 152 - urlWidth - 32,
+      15,
+    );
+    context.fillText(t("resultImage.cta"), 76, 1232);
+
+    context.fillStyle = COLORS.goldBright;
+    context.font = '600 22px Inter, "Noto Sans TC", sans-serif';
+    context.textAlign = "right";
+    context.fillText(urlText, IMAGE_WIDTH - 76, 1232);
+    context.textAlign = "left";
+  }
 
   context.fillStyle = COLORS.mist;
-  context.font = '500 17px "Noto Sans TC", sans-serif';
   context.letterSpacing = "1px";
-  context.fillText("圖片由本裝置產生；Voice Arcana 不接收或保存錄音。", 76, 1252);
-  context.fillText("本結果是創意詮釋，不代表人格、身分、情緒或健康診斷。", 76, 1285);
+  fitFontSize(
+    context,
+    t("resultImage.footerNote"),
+    (size) => `500 ${size}px "Noto Sans TC", sans-serif`,
+    16,
+    IMAGE_WIDTH - 152,
+    12,
+  );
+  context.fillText(t("resultImage.footerLocal"), 76, 1265);
+  context.fillText(t("resultImage.footerNote"), 76, 1292);
 }
 
-function drawWrappedText(context, text, x, y, maxWidth, lineHeight) {
+// Print only a clean short URL (no protocol or params) on the image; opened
+// without params, the share page shows the card's archetype axes.
+function displayShareUrl(shareUrl) {
+  return shareUrl
+    .replace(/^https?:\/\//, "")
+    .replace(/[?#].*$/, "")
+    .replace(/\/$/, "");
+}
+
+// Text containing spaces (English) wraps by word; CJK wraps per character.
+function wrapLines(context, text, maxWidth) {
+  const units = text.includes(" ")
+    ? text.split(" ").map((word, index) => (index ? ` ${word}` : word))
+    : [...text];
+  const lines = [];
   let line = "";
-  let lineIndex = 0;
-  for (const character of text) {
-    const candidate = line + character;
+  for (const unit of units) {
+    const candidate = line + unit;
     if (line && context.measureText(candidate).width > maxWidth) {
-      context.fillText(line, x, y + lineIndex * lineHeight);
-      line = character;
-      lineIndex += 1;
+      lines.push(line);
+      line = unit.trimStart();
     } else {
       line = candidate;
     }
   }
-  if (line) context.fillText(line, x, y + lineIndex * lineHeight);
+  if (line) lines.push(line);
+  return lines;
+}
+
+function drawWrappedText(context, text, x, y, maxWidth, lineHeight) {
+  wrapLines(context, text, maxWidth).forEach((line, index) => {
+    context.fillText(line, x, y + index * lineHeight);
+  });
+}
+
+// Step the font size down from the base until one line fits; measurement includes letterSpacing.
+function fitFontSize(context, text, font, baseSize, maxWidth, minSize) {
+  for (let size = baseSize; size > minSize; size -= 1) {
+    context.font = font(size);
+    if (context.measureText(text).width <= maxWidth) return size;
+  }
+  context.font = font(minSize);
+  return minSize;
+}
+
+// Shrink the font size until the wrapped text fits within maxLines lines.
+function fitWrappedFontSize(context, text, font, baseSize, maxWidth, maxLines, minSize) {
+  for (let size = baseSize; size > minSize; size -= 1) {
+    context.font = font(size);
+    if (wrapLines(context, text, maxWidth).length <= maxLines) return size;
+  }
+  context.font = font(minSize);
+  return minSize;
+}
+
+// English (contains spaces) gets tighter tracking; Chinese keeps the wide stage-like tracking.
+function latinAware(text, cjkSpacing, latinSpacing) {
+  return text.includes(" ") ? latinSpacing : cjkSpacing;
 }
 
 function canvasToBlob(canvas) {
@@ -311,7 +392,7 @@ function canvasToBlob(canvas) {
       if (blob) {
         resolve(blob);
       } else {
-        reject(new Error("分享圖片產生失敗，請稍後再試。"));
+        reject(new Error(t("resultImage.blobFailed")));
       }
     }, "image/png");
   });

@@ -1,4 +1,7 @@
 import { siteHeader } from "../../ui/site-header.js";
+import { escapeHtml } from "../../utils/escape-html.js";
+import { t } from "../../i18n/i18n.js";
+import { STEP_THRESHOLDS } from "./processing-progress.js";
 
 export function mountProcessingPage(root) {
   root.innerHTML = `
@@ -11,22 +14,22 @@ export function mountProcessingPage(root) {
           <span class="processing-sigil__ring"></span>
           <i></i>
         </div>
-        <p class="eyebrow">LOCAL AUDIO ANALYSIS</p>
-        <h1>正在聆聽聲音的形狀</h1>
-        <p class="processing-label" data-progress-label>正在準備本機分析</p>
+        <p class="eyebrow">${escapeHtml(t("processing.eyebrow"))}</p>
+        <h1>${escapeHtml(t("processing.title"))}</h1>
+        <p class="processing-label" data-progress-label>${escapeHtml(t("processing.preparing"))}</p>
         <div
           class="progress-track"
           role="progressbar"
           aria-valuemin="0"
           aria-valuemax="100"
           aria-valuenow="8"
-          aria-label="聲音分析進度"
+          aria-label="${escapeHtml(t("processing.progressAria"))}"
         >
           <span data-progress-bar style="width: 8%"></span>
         </div>
-        <div class="progress-meta"><span data-progress-number>08%</span><span>聲音不會離開這台裝置</span></div>
+        <div class="progress-meta"><span data-progress-number>08%</span><span>${escapeHtml(t("processing.privacy"))}</span></div>
         <div class="processing-steps" aria-hidden="true">
-          <span class="is-active">波形</span><i></i><span>音色</span><i></i><span>聲音牌</span>
+          ${t("processing.steps").map((step, index) => `<span class="${index === 0 ? "is-active" : ""}">${escapeHtml(step)}</span>`).join("<i></i>")}
         </div>
       </main>
     </div>
@@ -46,7 +49,7 @@ export function mountProcessingPage(root) {
       number.textContent = `${String(safeValue).padStart(2, "0")}%`;
       label.textContent = text;
       steps.forEach((step, index) => {
-        step.classList.toggle("is-active", safeValue >= [10, 48, 82][index]);
+        step.classList.toggle("is-active", safeValue >= STEP_THRESHOLDS[index]);
       });
     },
     destroy() {},

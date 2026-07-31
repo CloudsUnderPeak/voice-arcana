@@ -1,9 +1,9 @@
-import { magnitudeSpectrum } from "../src/domain/voice-portrait/fft.js";
-import { analyzeVoice } from "../src/domain/voice-portrait/analyze-voice.js";
-import { VOICE_CARDS } from "../src/domain/cards/card-catalog.js";
-import { selectVoiceCard } from "../src/domain/cards/select-voice-card.js";
-import { mountExperiencePage } from "../src/pages/experience/experience-page.js";
-import { mountResultPage } from "../src/pages/result/result-page.js";
+import { magnitudeSpectrum } from "../../src/domain/voice-portrait/fft.js";
+import { analyzeVoice } from "../../src/domain/voice-portrait/analyze-voice.js";
+import { VOICE_CARDS } from "../../src/domain/cards/card-catalog.js";
+import { selectVoiceCard } from "../../src/domain/cards/select-voice-card.js";
+import { mountExperiencePage } from "../../src/pages/experience/experience-page.js";
+import { mountResultPage } from "../../src/pages/result/result-page.js";
 
 const status = document.querySelector("#status");
 const fixture = document.querySelector("#fixture");

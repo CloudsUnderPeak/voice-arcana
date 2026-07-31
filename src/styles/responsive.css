@@ -3,6 +3,10 @@
     grid-template-columns: 1fr auto;
   }
 
+  .site-header__side {
+    grid-column: 2;
+  }
+
   .site-nav {
     display: none;
   }
@@ -166,10 +170,6 @@
     font-size: 0.76rem;
   }
 
-  .portrait-axis__score {
-    display: none;
-  }
-
   .portrait-axis__icon {
     width: 29px;
     height: 29px;
@@ -185,10 +185,6 @@
   }
 
   .measurement-note,
-  .interpretation-note {
-    grid-column: auto;
-  }
-
   .site-footer {
     display: grid;
     gap: 8px;

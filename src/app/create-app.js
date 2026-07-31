@@ -1,22 +1,55 @@
 import { createSessionStore } from "./session-store.js";
+import { initLocale, onLocaleChange, setLocale, t } from "../i18n/i18n.js";
+import { runVoiceAnalysis } from "./run-voice-analysis.js";
+import {
+  clearShareUrlFromHistory,
+  parseSharedResult,
+  writeShareUrlToHistory,
+} from "./share-link.js";
 import { AudioRecorder } from "../infrastructure/audio/audio-recorder.js";
 import { decodeAudioBlob } from "../infrastructure/audio/decode-audio.js";
-import { analyzeVoice } from "../domain/voice-portrait/analyze-voice.js";
 import { assessAudioQuality } from "../domain/voice-portrait/assess-audio-quality.js";
 import { selectVoiceCard } from "../domain/cards/select-voice-card.js";
 import { mountExperiencePage } from "../pages/experience/experience-page.js";
 import { mountProcessingPage } from "../pages/processing/processing-page.js";
 import { mountResultPage } from "../pages/result/result-page.js";
+import { ANALYSIS_PROGRESS } from "../pages/processing/processing-progress.js";
 
-const MIN_RECORDING_SECONDS = 2;
+export const MIN_RECORDING_SECONDS = 2;
+export const MAX_RECORDING_SECONDS = 60;
 
-export function createApp(root) {
+const defaultDependencies = {
+  createRecorder: (options) => new AudioRecorder(options),
+  decodeAudioBlob,
+  assessAudioQuality,
+  runVoiceAnalysis,
+  selectVoiceCard,
+  mountExperiencePage,
+  mountProcessingPage,
+  mountResultPage,
+  parseSharedResult,
+  writeShareUrlToHistory,
+  clearShareUrlFromHistory,
+};
+
+export function createApp(root, overrides = {}) {
+  const deps = { ...defaultDependencies, ...overrides };
   const store = createSessionStore();
   let page = null;
   let recorder = null;
   let unsubscribe = null;
+  let unsubscribeLocale = null;
   let finishPromise = null;
   let destroyed = false;
+
+  // The language toggle is rendered by siteHeader (data-lang-switch) and rebuilt
+  // on every re-render, so one delegated listener on root covers all of them.
+  function handleLanguageSwitch(event) {
+    const trigger = event.target?.closest?.("[data-lang-switch]");
+    if (!trigger) return;
+    event.preventDefault();
+    setLocale(trigger.dataset.langSwitch);
+  }
 
   function disposePage() {
     page?.destroy?.();
@@ -27,7 +60,7 @@ export function createApp(root) {
     store.setState({ recordingStatus: "requesting", error: "" });
 
     try {
-      recorder = new AudioRecorder({ maxDurationSeconds: 60 });
+      recorder = deps.createRecorder({ maxDurationSeconds: MAX_RECORDING_SECONDS });
       await recorder.start({
         onLevel: (level) => page?.updateLevel?.(level),
         onTime: (seconds) => page?.updateTime?.(seconds),
@@ -59,20 +92,22 @@ export function createApp(root) {
 
   async function validateRecording(recording) {
     recorder = null;
-    if (
-      !recording ||
-      recording.duration < MIN_RECORDING_SECONDS ||
-      !recording.blob ||
-      recording.blob.size === 0
-    ) {
+    if (!recording || !recording.blob || recording.blob.size === 0) {
       if (recording?.url) URL.revokeObjectURL(recording.url);
       store.setState({
         recordingStatus: "idle",
         recording: null,
-        error:
-          recording?.duration >= MIN_RECORDING_SECONDS
-            ? "沒有收到有效的錄音資料，請檢查麥克風後重新錄製。"
-            : `請至少錄製 ${MIN_RECORDING_SECONDS} 秒，讓聲音肖像有足夠線索。`,
+        error: t("errors.noRecordingData"),
+      });
+      return;
+    }
+
+    if (recording.duration < MIN_RECORDING_SECONDS) {
+      if (recording.url) URL.revokeObjectURL(recording.url);
+      store.setState({
+        recordingStatus: "idle",
+        recording: null,
+        error: t("errors.tooShort", { seconds: MIN_RECORDING_SECONDS }),
       });
       return;
     }
@@ -85,7 +120,7 @@ export function createApp(root) {
 
     let audioBuffer;
     try {
-      audioBuffer = await decodeAudioBlob(recording.blob);
+      audioBuffer = await deps.decodeAudioBlob(recording.blob);
     } catch (error) {
       console.error(error);
       URL.revokeObjectURL(recording.url);
@@ -93,7 +128,7 @@ export function createApp(root) {
       store.setState({
         recordingStatus: "idle",
         recording: null,
-        error: "這段錄音無法讀取，請重新錄製或改用最新版瀏覽器。",
+        error: t("errors.decodeFailed"),
       });
       return;
     }
@@ -103,13 +138,13 @@ export function createApp(root) {
       return;
     }
 
-    const quality = assessAudioQuality(audioBuffer);
+    const quality = deps.assessAudioQuality(audioBuffer);
     if (!quality.valid) {
       URL.revokeObjectURL(recording.url);
       store.setState({
         recordingStatus: "idle",
         recording: null,
-        error: "這段錄音沒有可用的聲音資料，請檢查麥克風後重新錄製。",
+        error: t("errors.silentRecording"),
       });
       return;
     }
@@ -119,9 +154,7 @@ export function createApp(root) {
       recording: {
         ...recording,
         audioBuffer,
-        qualityWarning: quality.lowSignal
-          ? "錄音訊號偏小。你仍可繼續分析，或靠近麥克風後重新錄製。"
-          : "",
+        qualityWarning: quality.lowSignal ? t("recorder.lowSignalWarning") : "",
       },
       error: "",
     });
@@ -136,27 +169,41 @@ export function createApp(root) {
 
     try {
       const audioBuffer =
-        recording.audioBuffer || (await decodeAudioBlob(recording.blob));
-      page?.setProgress?.(24, "正在拆解聲音的光譜");
-      const portrait = await analyzeVoice(audioBuffer, ({ progress, label }) => {
-        page?.setProgress?.(24 + Math.round(progress * 0.58), label);
-      });
-      page?.setProgress?.(88, "正在尋找與你共鳴的聲音牌");
-      const card = selectVoiceCard(portrait);
+        recording.audioBuffer || (await deps.decodeAudioBlob(recording.blob));
+      page?.setProgress?.(ANALYSIS_PROGRESS.decodeDone, t("processing.stages.decode"));
+      const portrait = await deps.runVoiceAnalysis(
+        audioBuffer,
+        ({ progress, stage }) => {
+          page?.setProgress?.(
+            ANALYSIS_PROGRESS.decodeDone +
+              Math.round(progress * ANALYSIS_PROGRESS.analysisSpan),
+            t(`processing.stages.${stage}`),
+          );
+        },
+      );
+      page?.setProgress?.(ANALYSIS_PROGRESS.matching, t("processing.stages.matching"));
+      const card = deps.selectVoiceCard(portrait);
       await delay(550);
-      page?.setProgress?.(100, "聲音肖像已完成");
+      page?.setProgress?.(ANALYSIS_PROGRESS.complete, t("processing.stages.done"));
       await delay(380);
 
+      // The result page only needs portrait and card; release the recording Blob, AudioBuffer, and object URL.
+      const analysis = { portrait, card, duration: recording.duration };
       store.setState({
         view: "result",
-        analysis: { portrait, card, duration: recording.duration },
+        recording: null,
+        recordingStatus: "idle",
+        analysis,
       });
+      // Write the result into the address bar: refreshes keep it and the URL is shareable.
+      deps.writeShareUrlToHistory(analysis);
+      if (recording.url) URL.revokeObjectURL(recording.url);
     } catch (error) {
       console.error(error);
       store.setState({
         view: "experience",
         recordingStatus: "ready",
-        error: "這段錄音暫時無法分析，請重新錄製後再試一次。",
+        error: t("errors.analysisFailed"),
       });
     }
   }
@@ -166,6 +213,7 @@ export function createApp(root) {
     recorder = null;
     const recording = store.getState().recording;
     if (recording?.url) URL.revokeObjectURL(recording.url);
+    deps.clearShareUrlFromHistory();
     store.reset();
   }
 
@@ -173,27 +221,45 @@ export function createApp(root) {
     disposePage();
 
     if (state.view === "processing") {
-      page = mountProcessingPage(root);
+      page = deps.mountProcessingPage(root);
       return;
     }
 
     if (state.view === "result") {
-      page = mountResultPage(root, state.analysis, { onReset: reset });
+      page = deps.mountResultPage(root, state.analysis, { onReset: reset });
       return;
     }
 
-    page = mountExperiencePage(root, state, {
-      onStart: beginRecording,
-      onStop: stopRecording,
-      onSubmit: submitRecording,
-      onReset: reset,
-    });
+    page = deps.mountExperiencePage(
+      root,
+      state,
+      {
+        onStart: beginRecording,
+        onStop: stopRecording,
+        onSubmit: submitRecording,
+        onReset: reset,
+      },
+      { maxDurationSeconds: MAX_RECORDING_SECONDS },
+    );
   }
 
   return {
     start() {
       destroyed = false;
+      initLocale();
+      // Re-render with the same state on locale change so all copy updates instantly.
+      unsubscribeLocale = onLocaleChange(() => render(store.getState()));
+      root.addEventListener?.("click", handleLanguageSwitch);
       unsubscribe = store.subscribe(render);
+      // URLs carrying result params (shared links or refreshes) boot straight into the result page.
+      const shared = deps.parseSharedResult();
+      if (shared) {
+        store.setState({
+          view: "result",
+          analysis: { ...shared, duration: 0, shared: true },
+        });
+        return;
+      }
       render(store.getState());
     },
     destroy() {
@@ -202,22 +268,21 @@ export function createApp(root) {
       const recording = store.getState().recording;
       if (recording?.url) URL.revokeObjectURL(recording.url);
       disposePage();
+      root.removeEventListener?.("click", handleLanguageSwitch);
+      unsubscribeLocale?.();
       unsubscribe?.();
     },
+    getState: store.getState,
   };
 }
 
 function microphoneErrorMessage(error) {
   if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
-    return "這個瀏覽器不支援網頁錄音，請改用最新版 Chrome、Edge、Firefox 或 Safari。";
+    return t("errors.unsupportedBrowser");
   }
-  if (error?.name === "NotAllowedError") {
-    return "麥克風權限尚未開啟。請允許此網站使用麥克風後再試一次。";
-  }
-  if (error?.name === "NotFoundError") {
-    return "找不到可使用的麥克風，請確認裝置已連接。";
-  }
-  return "無法啟動麥克風，請檢查瀏覽器權限與裝置設定。";
+  if (error?.name === "NotAllowedError") return t("errors.micDenied");
+  if (error?.name === "NotFoundError") return t("errors.micNotFound");
+  return t("errors.micFailed");
 }
 
 function nextPaint() {
@@ -225,5 +290,5 @@ function nextPaint() {
 }
 
 function delay(ms) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
+  return new Promise((resolve) => globalThis.setTimeout(resolve, ms));
 }

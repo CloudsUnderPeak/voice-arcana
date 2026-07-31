@@ -19,12 +19,40 @@
   border-bottom: 1px solid var(--line);
 }
 
+.site-header__side {
+  grid-column: 3;
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+}
+
 .site-header__context {
   margin: 0;
   color: var(--gold);
   font-family: var(--serif);
   font-size: 0.76rem;
   letter-spacing: 0.16em;
+}
+
+.lang-switch {
+  appearance: none;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--paper);
+  font-family: var(--serif);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.lang-switch:hover,
+.lang-switch:focus-visible {
+  border-color: var(--gold);
+  color: var(--gold);
 }
 
 .brand {

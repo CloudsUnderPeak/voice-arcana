@@ -1,0 +1,51 @@
+/* English copy runs longer than Chinese: adjust layout via <html lang="en">
+   to avoid overflow. Loaded last; the extra :lang() specificity lets these
+   rules win over every breakpoint rule. */
+
+/* Axis end labels (Deep/Bright, Intimate/Expansive...): fixed em columns wide
+   enough for the longest labels. auto columns would size per row and misalign
+   the six tracks; em scales with each breakpoint's font size. */
+:lang(en) .portrait-axis {
+  grid-template-columns: auto 4.5em minmax(0, 1fr) 5.2em;
+}
+
+:lang(en) .portrait-axis__low,
+:lang(en) .portrait-axis__high {
+  white-space: nowrap;
+}
+
+/* Tighter tracking and size for long card names (e.g. The Wave Breaker) */
+:lang(en) .arcana-card__caption span {
+  font-size: clamp(0.85rem, 1.7vw, 1.2rem);
+  letter-spacing: 0.08em;
+}
+
+:lang(en) .arcana-card__caption small {
+  letter-spacing: 0.03em;
+}
+
+:lang(en) .result-tagline {
+  letter-spacing: 0.04em;
+}
+
+/* Result title: the short Chinese title can stay nowrap, but the English one
+   (Your sound card: The Dream Builder) must wrap and shrink or it gets
+   clipped on a single line. */
+:lang(en) .result-content h1 {
+  letter-spacing: 0.02em;
+  white-space: normal;
+  overflow-wrap: break-word;
+  font-size: clamp(2rem, 2.6vw, 3.1rem);
+}
+
+/* The English passage is visually larger: tighten body size and leading for the single-viewport desktop layout */
+:lang(en) .experience-page .reading-copy {
+  font-size: clamp(0.76rem, 0.92vw, 0.9rem);
+  line-height: 1.6;
+}
+
+/* English reading paragraphs run longer; tighten slightly */
+:lang(en) .result-reading {
+  font-size: 0.78rem;
+  line-height: 1.6;
+}

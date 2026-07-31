@@ -262,7 +262,7 @@
 
 .portrait-axis {
   display: grid;
-  grid-template-columns: 38px 58px 1fr 78px 28px;
+  grid-template-columns: 38px 58px 1fr 78px;
   gap: 11px;
   align-items: center;
   font-family: var(--serif);
@@ -283,13 +283,6 @@
   text-align: left;
 }
 
-.portrait-axis__score {
-  color: var(--gold);
-  font-family: var(--sans);
-  font-size: 0.62rem;
-  font-variant-numeric: tabular-nums;
-}
-
 .portrait-axis__track {
   position: relative;
   display: flex;
@@ -300,6 +293,7 @@
 
 .portrait-axis__track::before {
   position: absolute;
+  top: 12px; /* integer offset: keeps the 1px hairline on the same device pixel in every row */
   right: 0;
   left: 0;
   height: 1px;
@@ -350,6 +344,53 @@
   margin: 8px 0 0;
   color: var(--gold);
   font-size: 0.68rem;
+}
+
+/* The overlay is out of flow: the result page is a single-viewport layout
+   (viewport.css) and the share image is too tall to live inside
+   result-content without breaking the page. */
+.share-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(10, 7, 14, 0.85);
+  backdrop-filter: blur(4px);
+}
+
+.share-overlay[hidden] {
+  display: none;
+}
+
+.share-overlay__panel {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  max-width: min(92vw, 440px);
+}
+
+.share-overlay__panel img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: min(72dvh, 640px);
+  border: 1px solid var(--line);
+  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.5);
+}
+
+.share-overlay__panel p {
+  margin: 0;
+  color: var(--paper-soft);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+}
+
+.share-overlay__panel .button {
+  min-height: 40px;
+  padding: 8px 26px;
 }
 
 .reading-detail {
@@ -404,13 +445,6 @@
 
 .measurement-note strong {
   color: var(--gold);
-}
-
-.interpretation-note {
-  grid-column: 1 / -1;
-  margin-bottom: 0;
-  font-family: var(--sans) !important;
-  font-size: 0.68rem;
 }
 
 .site-footer--result {

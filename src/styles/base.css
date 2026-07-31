@@ -132,10 +132,6 @@ svg {
   color: #211421;
 }
 
-.button span {
-  margin-left: 20px;
-}
-
 [hidden] {
   display: none !important;
 }
