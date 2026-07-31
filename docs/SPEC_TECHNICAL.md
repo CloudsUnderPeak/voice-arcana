@@ -147,6 +147,7 @@ M1 其餘目標：
 - 正確回傳 JS module MIME type。
 - SPA 目前不依賴 path route，因此不需要 fallback rewrite。
 - 不注入第三方 analytics 或錄音代理。
+- 桌面結果頁以固定高度的 `.result-shell` 作為垂直捲動容器；`.result-page` 保留一個 viewport 的最小高度，但內容增高時自然撐開，避免英文文案、文字縮放或較矮視窗裁切底部操作。
 
 ## 10. 里程碑
 

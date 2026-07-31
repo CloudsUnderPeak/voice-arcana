@@ -146,8 +146,15 @@
   margin-top: clamp(30px, 7vh, 70px);
 }
 
+.result-shell {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
 .result-page {
-  min-height: 0;
+  height: auto;
+  min-height: calc(100dvh - var(--header-height));
+  overflow: visible;
   padding-top: clamp(18px, 3vh, 42px);
   padding-bottom: clamp(18px, 3vh, 42px);
 }
