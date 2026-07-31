@@ -111,8 +111,6 @@ export const EN = Object.freeze({
     yourCard: "Your sound card",
     portraitTitle: "Sound Portrait",
     questionLabel: "A QUESTION FOR YOU",
-    footerLocal: "Created on this device; Voice Arcana never receives or stores recordings.",
-    footerNote: "A creative interpretation — not a diagnosis of personality, identity, emotion, or health.",
     cta: "Try your own sound card",
     blobFailed: "The share image couldn't be created. Please try again later.",
     cannotCreate: "This browser can't create the share image.",

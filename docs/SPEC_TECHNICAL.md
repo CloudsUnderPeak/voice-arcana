@@ -89,7 +89,7 @@ domain → utils
 
 結果分享使用固定 1080 × 1350 的 Canvas 在本機重繪牌面、六軸與提問，再以 `canvas.toBlob("image/png")` 建立圖片並掛上 object URL。「分享結果」按鈕開啟全螢幕覆蓋層顯示這張圖，使用者以長按（行動端）或右鍵（桌面）儲存——不使用 `navigator.share` 或自動下載，讓行為在所有裝置與 in-app 瀏覽器一致。覆蓋層不佔文流，維持單屏排版（viewport.css）的約束；頁面銷毀時撤銷 object URL。六軸在頁面與分享圖上都只呈現滑標位置，不顯示數字分數。匯出流程不讀取原始 sample、Blob 或 AudioBuffer。
 
-結果同時具有可分享的網址（`src/app/share-link.js`）：參數只含牌 id 與六軸分數（`?card=<id>&axes=<0–100 六段>`，順序由 `PORTRAIT_AXES` 固定），不含任何音訊或可還原聲音的資料。完成分析後以 `history.replaceState` 寫回網址列，重新整理可還原結果；`reset` 時清除。對外分享連結指向 build 時為每張牌產生的靜態分享頁（`share/<id>/index.html`，見 `tools/share-pages.js`），供社群爬蟲讀取牌面專屬 OG 標籤，真人開啟時由該頁帶著 `axes` 導回應用程式；沒帶 `axes` 的連結以該牌原型向量呈現六軸。透過分享連結開啟的結果頁標示為朋友分享，主要行動改為「換我測測看」。分享圖 footer 印上導流短網址與「你也來測」CTA，並保留創意詮釋限制與本機處理聲明。
+結果同時具有可分享的網址（`src/app/share-link.js`）：參數只含牌 id 與六軸分數（`?card=<id>&axes=<0–100 六段>`，順序由 `PORTRAIT_AXES` 固定），不含任何音訊或可還原聲音的資料。完成分析後以 `history.replaceState` 寫回網址列，重新整理可還原結果；`reset` 時清除。對外分享連結指向 build 時為每張牌產生的靜態分享頁（`share/<id>/index.html`，見 `tools/share-pages.js`），供社群爬蟲讀取牌面專屬 OG 標籤，真人開啟時由該頁帶著 `axes` 導回應用程式；沒帶 `axes` 的連結以該牌原型向量呈現六軸。透過分享連結開啟的結果頁標示為朋友分享，主要行動改為「換我測測看」。分享圖 footer 印上導流短網址與「你也來測」CTA。
 
 ## 5. 錄音生命週期
 
@@ -128,7 +128,7 @@ M1 其餘目標：
   `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'none'; object-src 'none'; base-uri 'none'`
 - 不載入外部字型，以系統字型維持零第三方請求。
 - 不把牌卡分數宣稱為生物特徵辨識結果。
-- 分享圖必須保留創意詮釋限制與本機處理聲明，且不得含原始音訊或可還原聲音的資料。
+- 分享圖不得含原始音訊或可還原聲音的資料；創意詮釋限制與本機處理承諾記載於 README 產品邊界與首頁隱私說明。
 - 部署前以 Network 與 CSP `connect-src 'none'` 驗證無外傳。
 
 ## 8. 測試策略

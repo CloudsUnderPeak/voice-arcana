@@ -108,7 +108,7 @@ function drawResultImage(context, analysis, artwork, shareUrl) {
     drawAxis(context, axis, 540, 525 + index * 62, 452, labelWidth);
   });
 
-  drawQuestion(context, card.question);
+  drawNarrative(context, card);
   drawFooter(context, shareUrl);
 }
 
@@ -147,9 +147,11 @@ function drawFrame(context) {
 }
 
 function drawCard(context, artwork, card) {
+  // Deliberately offset from the axis block (not bottom-aligned): the card
+  // sits higher, keeping the staggered, editorial feel of the layout.
   const x = 76;
-  const y = 145;
-  const width = 400;
+  const y = 142;
+  const width = 428;
   const height = width / CARD_ASPECT_RATIO;
 
   context.fillStyle = COLORS.surface;
@@ -248,11 +250,60 @@ function drawAxis(context, axis, x, y, width, labelWidth = 76) {
   context.restore();
 }
 
-function drawQuestion(context, question) {
+// Narrative block: the card's voice profile prose stacked above the question,
+// both auto-fitted so the longer English copy stays inside the frame.
+function drawNarrative(context, card) {
   const x = 76;
-  const y = 900;
+  const y = 872;
   const width = 928;
-  const height = 245;
+  const innerX = x + 48;
+  const innerWidth = width - 96;
+
+  // Measure everything first so the frame hugs the content instead of
+  // leaving dead space under a one-line question.
+  context.letterSpacing = latinAware(card.profile, "1px", "0px");
+  const profileSize = fitWrappedFontSize(
+    context,
+    card.profile,
+    (size) => `500 ${size}px "Noto Serif TC", "PMingLiU", serif`,
+    18,
+    innerWidth,
+    5,
+    14,
+  );
+  const profileLineHeight = Math.round(profileSize * 1.6);
+  const profileLines = wrapLines(context, card.profile, innerWidth);
+
+  context.letterSpacing = latinAware(card.question, "2px", "1px");
+  const questionSize = fitWrappedFontSize(
+    context,
+    card.question,
+    (size) => `500 ${size}px "Noto Serif TC", "PMingLiU", serif`,
+    28,
+    innerWidth,
+    2,
+    20,
+  );
+  const questionLineHeight = Math.round(questionSize * 1.45);
+  const questionLines = wrapLines(context, card.question, innerWidth);
+
+  // The frame fills the fixed band between the axes and the footer; the
+  // content is vertically centered inside it so leftover space becomes even
+  // padding instead of a dead area above the footer.
+  const contentSpan =
+    profileSize +
+    (profileLines.length - 1) * profileLineHeight +
+    28 + 34 + 40 +
+    (questionLines.length - 1) * questionLineHeight +
+    Math.round(questionSize * 0.35);
+  const height = Math.max(278, contentSpan + 52);
+  const topPad = Math.max(26, Math.round((height - contentSpan) / 2));
+  const profileTop = y + topPad + profileSize;
+  const profileBottom = profileTop + (profileLines.length - 1) * profileLineHeight;
+  const dividerY = profileBottom + 28;
+  const labelY = dividerY + 34;
+  const questionTop = labelY + 40;
+
   context.fillStyle = "rgba(39, 24, 49, 0.78)";
   context.fillRect(x, y, width, height);
   context.strokeStyle = COLORS.line;
@@ -260,30 +311,33 @@ function drawQuestion(context, question) {
   context.fillStyle = COLORS.coral;
   context.fillRect(x, y, 4, height);
 
+  context.fillStyle = COLORS.soft;
+  context.letterSpacing = latinAware(card.profile, "1px", "0px");
+  context.font = `500 ${profileSize}px "Noto Serif TC", "PMingLiU", serif`;
+  drawWrappedText(context, card.profile, innerX, profileTop, innerWidth, profileLineHeight);
+
+  context.strokeStyle = COLORS.line;
+  context.beginPath();
+  context.moveTo(innerX, dividerY);
+  context.lineTo(innerX + 120, dividerY);
+  context.stroke();
+
   context.fillStyle = COLORS.coral;
   context.font = '700 17px Inter, "Noto Sans TC", sans-serif';
   context.letterSpacing = "4px";
-  context.fillText(t("resultImage.questionLabel"), x + 48, y + 58);
+  context.fillText(t("resultImage.questionLabel"), innerX, labelY);
 
   context.fillStyle = COLORS.paper;
-  context.letterSpacing = latinAware(question, "2px", "1px");
-  const questionSize = fitWrappedFontSize(
-    context,
-    question,
-    (size) => `500 ${size}px "Noto Serif TC", "PMingLiU", serif`,
-    38,
-    width - 96,
-    2,
-    24,
-  );
-  drawWrappedText(context, question, x + 48, y + 122, width - 96, Math.round(questionSize * 1.5));
+  context.letterSpacing = latinAware(card.question, "2px", "1px");
+  context.font = `500 ${questionSize}px "Noto Serif TC", "PMingLiU", serif`;
+  drawWrappedText(context, card.question, innerX, questionTop, innerWidth, questionLineHeight);
 }
 
 function drawFooter(context, shareUrl) {
   context.fillStyle = COLORS.gold;
   context.font = '700 18px Inter, "Noto Sans TC", sans-serif';
   context.letterSpacing = "3px";
-  context.fillText("VOICE ARCANA", 76, 1196);
+  context.fillText("VOICE ARCANA", 76, 1224);
 
   // Referral entry point: viewers of the image can find the experience,
   // closing the record -> share -> friends-try loop.
@@ -303,27 +357,15 @@ function drawFooter(context, shareUrl) {
       IMAGE_WIDTH - 152 - urlWidth - 32,
       15,
     );
-    context.fillText(t("resultImage.cta"), 76, 1232);
+    context.fillText(t("resultImage.cta"), 76, 1262);
 
     context.fillStyle = COLORS.goldBright;
     context.font = '600 22px Inter, "Noto Sans TC", sans-serif';
     context.textAlign = "right";
-    context.fillText(urlText, IMAGE_WIDTH - 76, 1232);
+    context.fillText(urlText, IMAGE_WIDTH - 76, 1262);
     context.textAlign = "left";
   }
 
-  context.fillStyle = COLORS.mist;
-  context.letterSpacing = "1px";
-  fitFontSize(
-    context,
-    t("resultImage.footerNote"),
-    (size) => `500 ${size}px "Noto Sans TC", sans-serif`,
-    16,
-    IMAGE_WIDTH - 152,
-    12,
-  );
-  context.fillText(t("resultImage.footerLocal"), 76, 1265);
-  context.fillText(t("resultImage.footerNote"), 76, 1292);
 }
 
 // Print only a clean short URL (no protocol or params) on the image; opened
@@ -336,6 +378,10 @@ function displayShareUrl(shareUrl) {
 }
 
 // Text containing spaces (English) wraps by word; CJK wraps per character.
+// CJK closing punctuation must not start a line (kinsoku): let it hang at the
+// end of the previous line instead.
+const NO_LINE_START = new Set([..."。，、；：！？…—）」』】％"]);
+
 function wrapLines(context, text, maxWidth) {
   const units = text.includes(" ")
     ? text.split(" ").map((word, index) => (index ? ` ${word}` : word))
@@ -345,6 +391,11 @@ function wrapLines(context, text, maxWidth) {
   for (const unit of units) {
     const candidate = line + unit;
     if (line && context.measureText(candidate).width > maxWidth) {
+      if (NO_LINE_START.has(unit)) {
+        lines.push(candidate);
+        line = "";
+        continue;
+      }
       lines.push(line);
       line = unit.trimStart();
     } else {

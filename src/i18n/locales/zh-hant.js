@@ -106,8 +106,6 @@ export const ZH_HANT = Object.freeze({
     yourCard: "你的聲音牌",
     portraitTitle: "聲音肖像",
     questionLabel: "給你的提問",
-    footerLocal: "圖片由本裝置產生；Voice Arcana 不接收或保存錄音。",
-    footerNote: "本結果是創意詮釋，不代表人格、身分、情緒或健康診斷。",
     cta: "你也來測你的聲音牌",
     blobFailed: "分享圖片產生失敗，請稍後再試。",
     cannotCreate: "此瀏覽器無法建立分享圖片。",
