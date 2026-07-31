@@ -1,0 +1,23 @@
+name: Verify and build
+description: Set up Node.js, install locked dependencies, run tests, and build dist/
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: 22
+        cache: npm
+
+    - name: Install dependencies
+      run: npm ci --no-audit --no-fund
+      shell: bash
+
+    - name: Run syntax checks and tests
+      run: npm run check
+      shell: bash
+
+    - name: Build production site
+      run: npm run build
+      shell: bash

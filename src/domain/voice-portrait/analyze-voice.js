@@ -1,46 +1,55 @@
 import { magnitudeSpectrum } from "./fft.js";
+import { PORTRAIT_AXES, createAxis } from "./portrait-axes.js";
 import { clamp01, mean, standardDeviation, scale } from "../../utils/math.js";
 
 const FFT_SIZE = 1024;
 const MAX_SPECTRAL_FRAMES = 96;
-const PITCH_FRAME_SIZE = 2048;
-const MAX_PITCH_FRAMES = 32;
+// 64ms @16kHz is about 4 periods of the 70Hz minimum pitch. Longer frames let
+// intonation move F0 within a frame, lowering autocorrelation and
+// misreading expressiveness as raspiness.
+const PITCH_FRAME_SIZE = 1024;
+const MAX_PITCH_FRAMES = 48;
 const MIN_ACTIVE_RMS = 0.008;
 
+// onProgress reports { progress, stage }, where stage is an identifier;
+// the UI resolves display copy per locale (processing.stages.*), keeping
+// the worker free of UI copy.
 export async function analyzeVoice(audioBuffer, onProgress = () => {}) {
   const samples = mixToMono(audioBuffer);
   const sampleRate = audioBuffer.sampleRate;
-  onProgress({ progress: 0.08, label: "正在辨認聲音與停頓" });
+  onProgress({ progress: 0.08, stage: "temporal" });
   const temporal = analyzeTemporal(samples, sampleRate);
   await yieldToBrowser();
 
-  onProgress({ progress: 0.34, label: "正在閱讀音色的明暗" });
+  onProgress({ progress: 0.34, stage: "spectral" });
   const spectral = analyzeSpectral(samples, sampleRate);
   await yieldToBrowser();
 
-  onProgress({ progress: 0.56, label: "正在追蹤音高的輪廓" });
+  onProgress({ progress: 0.56, stage: "pitch" });
   const pitch = analyzePitch(samples, sampleRate);
   await yieldToBrowser();
 
-  onProgress({ progress: 0.74, label: "正在比對節奏與能量" });
+  onProgress({ progress: 0.74, stage: "axes" });
   const axes = createPortraitAxes(temporal, spectral, pitch);
   await yieldToBrowser();
 
-  onProgress({ progress: 0.96, label: "正在描繪六個聲音維度" });
+  onProgress({ progress: 0.96, stage: "portrait" });
   return {
     axes,
     measurements: {
       durationSeconds: audioBuffer.duration,
       rms: round(temporal.activeRms, 4),
+      rmsVariation: round(temporal.rmsVariation, 3),
       dynamicRange: round(temporal.dynamicRange, 3),
       zeroCrossingRate: round(temporal.zeroCrossingRate, 4),
       spectralCentroidHz: Math.round(spectral.centroid),
       spectralRolloffHz: Math.round(spectral.rolloff),
-      spectralFlatness: round(spectral.flatness, 3),
+      spectralBandFlatness: round(spectral.bandFlatness, 3),
       highFrequencyRatio: round(spectral.highFrequencyRatio, 3),
       pitchHz: Math.round(pitch.medianHz),
       pitchVariation: round(pitch.variation, 3),
       pitchConfidence: round(pitch.confidence, 3),
+      pitchPeriodicity: round(pitch.periodicity, 3),
     },
     confidence: temporal.activeRatio < 0.18 ? "low" : "medium",
   };
@@ -61,19 +70,33 @@ function mixToMono(audioBuffer) {
 function analyzeTemporal(samples, sampleRate) {
   const frameSize = Math.max(256, Math.round(sampleRate * 0.025));
   const rmsValues = [];
-  let crossings = 0;
+  // ZCR counts voiced frames only: noise-floor crossings during pauses are
+  // extremely dense and would inflate the crisp and husky axes.
+  let totalCrossings = 0;
+  let totalSamples = 0;
+  let activeCrossings = 0;
+  let activeSamples = 0;
   let previous = samples[0] || 0;
 
   for (let index = 0; index < samples.length; index += frameSize) {
     const end = Math.min(samples.length, index + frameSize);
     let energy = 0;
+    let frameCrossings = 0;
     for (let cursor = index; cursor < end; cursor += 1) {
       const sample = samples[cursor];
       energy += sample * sample;
-      if ((sample >= 0) !== (previous >= 0)) crossings += 1;
+      if ((sample >= 0) !== (previous >= 0)) frameCrossings += 1;
       previous = sample;
     }
-    rmsValues.push(Math.sqrt(energy / Math.max(1, end - index)));
+    const frameLength = Math.max(1, end - index);
+    const rms = Math.sqrt(energy / frameLength);
+    rmsValues.push(rms);
+    totalCrossings += frameCrossings;
+    totalSamples += frameLength;
+    if (rms >= MIN_ACTIVE_RMS) {
+      activeCrossings += frameCrossings;
+      activeSamples += frameLength;
+    }
   }
 
   const active = rmsValues.filter((value) => value >= MIN_ACTIVE_RMS);
@@ -88,7 +111,9 @@ function analyzeTemporal(samples, sampleRate) {
     activeRatio: active.length / Math.max(1, rmsValues.length),
     rmsVariation: standardDeviation(safeActive) / Math.max(activeRms, 0.001),
     dynamicRange: (upper - lower) / Math.max(upper, 0.001),
-    zeroCrossingRate: crossings / Math.max(1, samples.length),
+    zeroCrossingRate: activeSamples
+      ? activeCrossings / activeSamples
+      : totalCrossings / Math.max(1, totalSamples),
   };
 }
 
@@ -98,59 +123,100 @@ function analyzeSpectral(samples, sampleRate) {
   const stride = Math.max(FFT_SIZE, Math.floor(samples.length / frameCount));
   const centroids = [];
   const rolloffs = [];
-  const flatnessValues = [];
   const highRatios = [];
+
+  const bandFlatnessValues = [];
 
   for (let start = 0; start + FFT_SIZE <= samples.length; start += stride) {
     const frame = samples.subarray(start, start + FFT_SIZE);
-    const rms = Math.sqrt(mean(Array.from(frame, (sample) => sample * sample)));
-    if (rms < MIN_ACTIVE_RMS) continue;
+    if (frameRms(frame) < MIN_ACTIVE_RMS) continue;
 
     const spectrum = magnitudeSpectrum(frame);
+    // Weight by power (magnitude squared): linear magnitude lets the broadband
+    // noise floor inflate centroid/rolloff/high-frequency ratio; power tracks
+    // the energy distribution and perception more closely.
     let total = 0;
-    let weighted = 0;
     let high = 0;
-    let logSum = 0;
     let rolloff = 0;
+    let bandTotal = 0;
+    let bandLogSum = 0;
+    let bandBins = 0;
+    // Centroid/rolloff are limited to the 150 Hz-5 kHz voice band, with the
+    // band's median power subtracted as a noise floor: breath and ambient noise
+    // carpet the whole band and drag the centroid upward, misreading husky or
+    // noisy recordings as bright; subtraction keeps only the harmonic skeleton.
+    const bandPowers = [];
+    const bandFrequencies = [];
     for (let bin = 1; bin < spectrum.length; bin += 1) {
-      const magnitude = spectrum[bin] + 1e-12;
+      const power = spectrum[bin] * spectrum[bin] + 1e-18;
       const frequency = (bin * sampleRate) / FFT_SIZE;
-      total += magnitude;
-      weighted += frequency * magnitude;
-      if (frequency >= 3000) high += magnitude;
-      logSum += Math.log(magnitude);
+      total += power;
+      if (frequency >= 3000) high += power;
+      if (frequency >= 150 && frequency <= 5000) {
+        bandPowers.push(power);
+        bandFrequencies.push(frequency);
+      }
+      // Full-band flatness is dominated by the noise floor in empty high bins and
+      // degenerates into an SNR measure; husky texture instead looks at the noise
+      // between harmonics inside the 300 Hz-5 kHz voice band.
+      if (frequency >= 300 && frequency <= 5000) {
+        bandTotal += power;
+        bandLogSum += Math.log(power);
+        bandBins += 1;
+      }
     }
-    const rolloffTarget = total * 0.85;
+    const noiseFloor = median(bandPowers);
+    let voiceBandTotal = 0;
+    let voiceBandWeighted = 0;
+    for (let index = 0; index < bandPowers.length; index += 1) {
+      const tonal = Math.max(0, bandPowers[index] - noiseFloor);
+      voiceBandTotal += tonal;
+      voiceBandWeighted += bandFrequencies[index] * tonal;
+    }
+    const rolloffTarget = voiceBandTotal * 0.85;
     let cumulative = 0;
-    for (let bin = 1; bin < spectrum.length; bin += 1) {
-      cumulative += spectrum[bin];
+    for (let index = 0; index < bandPowers.length; index += 1) {
+      cumulative += Math.max(0, bandPowers[index] - noiseFloor);
       if (cumulative >= rolloffTarget) {
-        rolloff = (bin * sampleRate) / FFT_SIZE;
+        rolloff = bandFrequencies[index];
         break;
       }
     }
-    centroids.push(weighted / Math.max(total, 1e-9));
+    if (voiceBandTotal > 0) {
+      centroids.push(voiceBandWeighted / voiceBandTotal);
+    }
     rolloffs.push(rolloff);
-    flatnessValues.push(
-      Math.exp(logSum / (spectrum.length - 1)) /
-        Math.max(total / (spectrum.length - 1), 1e-9),
-    );
-    highRatios.push(high / Math.max(total, 1e-9));
+    if (bandBins > 0) {
+      bandFlatnessValues.push(
+        Math.exp(bandLogSum / bandBins) / Math.max(bandTotal / bandBins, 1e-18),
+      );
+    }
+    highRatios.push(high / Math.max(total, 1e-18));
   }
 
+  // Centroid uses the 35th percentile across frames: fricative frames (s, sh,
+  // x...) center at 3-5 kHz and are strongly right-skewed outliers. In
+  // fricative-heavy languages such as Mandarin they can approach half of all
+  // frames and push even the median up; a low percentile stays anchored to the
+  // voiced core. Rolloff uses the median; the high-frequency ratio keeps the
+  // mean - fricatives are exactly what the crisp axis should hear.
+  const sortedCentroids = [...centroids].sort((a, b) => a - b);
+  const sortedRolloffs = [...rolloffs].sort((a, b) => a - b);
+  const centroidCore = percentile(sortedCentroids, 0.35) || 900;
   return {
-    centroid: mean(centroids) || 1200,
-    rolloff: mean(rolloffs) || 1800,
+    centroid: centroidCore,
+    rolloff: median(sortedRolloffs) || 1500,
     centroidVariation:
-      standardDeviation(centroids) / Math.max(mean(centroids), 1),
-    flatness: mean(flatnessValues) || 0,
+      (percentile(sortedCentroids, 0.75) - percentile(sortedCentroids, 0.25)) /
+      Math.max(centroidCore, 1),
+    bandFlatness: mean(bandFlatnessValues) || 0,
     highFrequencyRatio: mean(highRatios) || 0,
   };
 }
 
 function analyzePitch(samples, sampleRate) {
   if (samples.length < PITCH_FRAME_SIZE) {
-    return { medianHz: 0, variation: 0, confidence: 0 };
+    return { medianHz: 0, variation: 0, confidence: 0, periodicity: 0 };
   }
 
   const stride = Math.max(
@@ -159,32 +225,49 @@ function analyzePitch(samples, sampleRate) {
   );
   const estimates = [];
   const correlations = [];
+  // Periodicity is a proxy for HNR (Praat: HNR = 10*log10(r / (1 - r));
+  // healthy adult speech has high r, breathy/hoarse voices low r). It takes the
+  // 75th percentile of each active frame's best autocorrelation: consonant and
+  // fricative frames are inherently aperiodic, so a mean would misread clean but
+  // consonant-rich voices as husky; a clean voice's top frames stay near 1 while
+  // a hoarse voice cannot reach it even in its best frames.
+  const frameCorrelations = [];
   let inspectedFrames = 0;
 
   for (let start = 0; start + PITCH_FRAME_SIZE <= samples.length; start += stride) {
     const frame = samples.subarray(start, start + PITCH_FRAME_SIZE);
-    const rms = Math.sqrt(mean(Array.from(frame, (sample) => sample * sample)));
-    if (rms < MIN_ACTIVE_RMS) continue;
+    if (frameRms(frame) < MIN_ACTIVE_RMS) continue;
     inspectedFrames += 1;
 
     const estimate = estimateFundamental(frame, sampleRate);
+    frameCorrelations.push(estimate.correlation);
     if (estimate.hz > 0) {
       estimates.push(estimate.hz);
       correlations.push(estimate.correlation);
     }
   }
 
+  const sortedCorrelations = [...frameCorrelations].sort((a, b) => a - b);
+  const periodicity = clamp01(percentile(sortedCorrelations, 0.75));
+
   if (!estimates.length) {
-    return { medianHz: 0, variation: 0, confidence: 0 };
+    return { medianHz: 0, variation: 0, confidence: 0, periodicity };
   }
 
   const medianHz = median(estimates);
+  // Drop estimates more than 1.5x away from the median: autocorrelation octave
+  // errors (locking onto 2x or 0.5x F0) explode the variance and misread a
+  // steady voice as highly modulated.
+  const inliers = estimates.filter(
+    (hz) => hz >= medianHz / 1.5 && hz <= medianHz * 1.5,
+  );
   return {
     medianHz,
-    variation: standardDeviation(estimates) / Math.max(medianHz, 1),
+    variation: standardDeviation(inliers) / Math.max(median(inliers), 1),
     confidence: clamp01(
       mean(correlations) * (estimates.length / Math.max(inspectedFrames, 1)),
     ),
+    periodicity,
   };
 }
 
@@ -228,52 +311,55 @@ function estimateFundamental(frame, sampleRate) {
   return { hz: 0, correlation: bestCorrelation };
 }
 
+// Normalization ranges are calibrated against speech-acoustics literature (see docs/AUDIO_ANALYSIS.md):
+// - Adult F0 spans roughly 85-300 Hz (male median ~120 Hz, female ~210 Hz).
+// - Healthy adults sit at HNR >= 15-20 dB (autocorrelation r ~ 0.97-0.99); HNR < 10 dB (r < 0.91)
+//   reads as clearly breathy/hoarse, so aperiodicity = 1 - r maps over 0.04-0.30.
+// - Flatness approaches 0 for pure tones and 1 for white noise; voiced speech
+//   stays below ~0.1 in-band, and breath noise raises the floor between harmonics.
 function createPortraitAxes(temporal, spectral, pitch) {
-  const spectralBrightness = clamp01(
-    scale(spectral.centroid, 700, 3100) * 0.76 +
-      scale(spectral.highFrequencyRatio, 0.04, 0.32) * 0.24,
-  );
-  const pitchBrightness = logarithmicScale(pitch.medianHz, 85, 300);
-  const pitchWeight = 0.34 * pitch.confidence;
+  // Brightness leans on F0 as the main perceptual cue, with spectral tilt
+  // (percentile centroid) as support; sqrt(confidence) keeps moderately
+  // confident pitch estimates meaningfully weighted.
+  const pitchWeight = 0.5 * Math.sqrt(pitch.confidence);
   const brightness = clamp01(
-    spectralBrightness * (1 - pitchWeight) + pitchBrightness * pitchWeight,
+    logarithmicScale(spectral.centroid, 220, 1200) * (1 - pitchWeight) +
+      logarithmicScale(pitch.medianHz, 85, 300) * pitchWeight,
   );
   const sharpness = clamp01(
-    brightness * 0.38 +
-      scale(spectral.rolloff, 1200, 5200) * 0.2 +
-      scale(spectral.flatness, 0.04, 0.38) * 0.18 +
-      scale(temporal.zeroCrossingRate, 0.025, 0.16) * 0.24,
+    logarithmicScale(spectral.rolloff, 300, 2400) * 0.3 +
+      scale(spectral.highFrequencyRatio, 0.01, 0.25) * 0.3 +
+      scale(temporal.zeroCrossingRate, 0.05, 0.25) * 0.4,
   );
+  // rmsVariation / dynamicRange ranges are calibrated on real read-aloud samples:
+  // continuous reading (with sentence pauses) yields rmsVariation ~0.65-0.9 and
+  // dynamicRange ~0.8-0.9, far above steady tones; narrower ranges saturate
+  // every real recording.
   const bounce = clamp01(
-    scale(temporal.rmsVariation, 0.2, 1.15) * 0.46 +
-      scale(spectral.centroidVariation, 0.08, 0.52) * 0.26 +
-      scale(pitch.variation, 0.015, 0.24) * pitch.confidence * 0.28,
+    scale(temporal.rmsVariation, 0.5, 0.95) * 0.4 +
+      scale(spectral.centroidVariation, 0.1, 0.45) * 0.25 +
+      scale(pitch.variation, 0.05, 0.3) * pitch.confidence * 0.35,
   );
   const openness = clamp01(
-    scale(spectral.centroidVariation, 0.06, 0.46) * 0.3 +
-      scale(temporal.dynamicRange, 0.22, 0.88) * 0.3 +
-      scale(pitch.variation, 0.015, 0.24) * pitch.confidence * 0.22 +
-      brightness * 0.18,
+    scale(temporal.dynamicRange, 0.6, 0.95) * 0.4 +
+      scale(spectral.centroidVariation, 0.06, 0.35) * 0.3 +
+      scale(pitch.variation, 0.04, 0.28) * pitch.confidence * 0.3,
   );
+  const aperiodicity = scale(1 - pitch.periodicity, 0.03, 0.18);
   const raspiness = clamp01(
-    scale(spectral.flatness, 0.035, 0.42) * 0.62 +
-      scale(temporal.zeroCrossingRate, 0.025, 0.17) * 0.38,
+    aperiodicity * 0.6 +
+      scale(spectral.bandFlatness, 0.03, 0.28) * 0.3 +
+      scale(temporal.zeroCrossingRate, 0.06, 0.3) * 0.1,
   );
   const energy = clamp01(
-    scale(temporal.activeRms, 0.012, 0.16) * 0.1 +
-      scale(temporal.dynamicRange, 0.15, 0.82) * 0.32 +
-      bounce * 0.38 +
-      scale(temporal.activeRatio, 0.35, 0.95) * 0.2,
+    scale(temporal.activeRatio, 0.35, 0.85) * 0.33 +
+      scale(temporal.dynamicRange, 0.55, 0.92) * 0.25 +
+      scale(temporal.activeRms, 0.015, 0.1) * 0.12 +
+      bounce * 0.3,
   );
 
-  return [
-    axis("brightness", "低沉", "明亮", brightness, "音色明暗"),
-    axis("sharpness", "柔和", "銳利", sharpness, "高頻輪廓"),
-    axis("bounce", "沉穩", "跳躍", bounce, "節奏起伏"),
-    axis("openness", "親密", "開闊", openness, "空間感"),
-    axis("raspiness", "乾淨", "沙啞", raspiness, "聲帶質地"),
-    axis("energy", "平靜", "充滿能量", energy, "整體動能"),
-  ];
+  const values = { brightness, sharpness, bounce, openness, raspiness, energy };
+  return PORTRAIT_AXES.map((definition) => createAxis(definition, values[definition.id]));
 }
 
 function logarithmicScale(value, minimum, maximum) {
@@ -281,15 +367,12 @@ function logarithmicScale(value, minimum, maximum) {
   return scale(Math.log(value), Math.log(minimum), Math.log(maximum));
 }
 
-function axis(id, lowLabel, highLabel, value, description) {
-  return {
-    id,
-    lowLabel,
-    highLabel,
-    value: round(clamp01(value), 3),
-    score: Math.round(clamp01(value) * 100),
-    description,
-  };
+function frameRms(frame) {
+  let energy = 0;
+  for (let index = 0; index < frame.length; index += 1) {
+    energy += frame[index] * frame[index];
+  }
+  return Math.sqrt(energy / Math.max(1, frame.length));
 }
 
 function percentile(sorted, ratio) {

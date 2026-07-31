@@ -23,23 +23,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          package-manager-cache: false
-
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
-
-      - name: Run tests
-        run: npm test
-
-      - name: Build production site
-        run: npm run build
-
       - name: Configure GitHub Pages
+        id: pages
         uses: actions/configure-pages@v5
+
+      - name: Verify and build
+        uses: ./.github/actions/verify-build
+        env:
+          # OG 標籤需要絕對網址；build 用 Pages 提供的正式網址注入。
+          SITE_URL: ${{ steps.pages.outputs.base_url }}
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v4

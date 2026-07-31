@@ -1,5 +1,15 @@
 import { VOICE_CARDS } from "./card-catalog.js";
 
+// Affinity is normalized by the catalog's actual diameter (the distance between
+// the two farthest archetypes) rather than the unit-cube diagonal sqrt(6), which
+// squeezed every result into the high-score band and lost discrimination.
+const CATALOG_DIAMETER = VOICE_CARDS.reduce((maximum, left, index) => {
+  for (const right of VOICE_CARDS.slice(index + 1)) {
+    maximum = Math.max(maximum, euclideanDistance(left.vector, right.vector));
+  }
+  return maximum;
+}, 0);
+
 export function selectVoiceCard(portrait) {
   const vector = portrait.axes.map((axis) => axis.value);
   let bestCard = VOICE_CARDS[0];
@@ -15,7 +25,9 @@ export function selectVoiceCard(portrait) {
 
   return {
     ...bestCard,
-    affinity: Math.round(Math.max(0, 1 - bestDistance / Math.sqrt(vector.length)) * 100),
+    affinity: Math.round(
+      Math.max(0, Math.min(1, 1 - bestDistance / CATALOG_DIAMETER)) * 100,
+    ),
   };
 }
 

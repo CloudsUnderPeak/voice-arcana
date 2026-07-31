@@ -15,6 +15,11 @@ export function createSessionStore() {
       return state;
     },
     setState(patch) {
+      for (const key of Object.keys(patch)) {
+        if (!(key in initialState)) {
+          throw new Error(`Unknown session state key: ${key}`);
+        }
+      }
       state = { ...state, ...patch };
       listeners.forEach((listener) => listener(state));
     },

@@ -1,16 +1,36 @@
+// Workspaces and Hann-window tables cached per FFT size; magnitudeSpectrum runs
+// once per frame, so reuse avoids heavy temporary allocation across 96+ frames.
+const workspaces = new Map();
+
+function getWorkspace(size) {
+  let workspace = workspaces.get(size);
+  if (!workspace) {
+    const hannWindow = new Float64Array(size);
+    for (let index = 0; index < size; index += 1) {
+      hannWindow[index] = 0.5 - 0.5 * Math.cos((2 * Math.PI * index) / (size - 1));
+    }
+    workspace = {
+      real: new Float64Array(size),
+      imaginary: new Float64Array(size),
+      hannWindow,
+    };
+    workspaces.set(size, workspace);
+  }
+  return workspace;
+}
+
 export function magnitudeSpectrum(input) {
   const size = input.length;
   if ((size & (size - 1)) !== 0) {
     throw new Error("FFT input length must be a power of two");
   }
 
-  const real = new Float64Array(size);
-  const imaginary = new Float64Array(size);
+  const { real, imaginary, hannWindow } = getWorkspace(size);
+  imaginary.fill(0);
   const bits = Math.log2(size);
 
   for (let index = 0; index < size; index += 1) {
-    real[reverseBits(index, bits)] =
-      input[index] * (0.5 - 0.5 * Math.cos((2 * Math.PI * index) / (size - 1)));
+    real[reverseBits(index, bits)] = input[index] * hannWindow[index];
   }
 
   for (let block = 2; block <= size; block *= 2) {
@@ -48,4 +68,3 @@ function reverseBits(value, bitCount) {
   }
   return result;
 }
-

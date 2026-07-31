@@ -1,3 +1,4 @@
+// Single-use object: one AudioRecorder per take; create a new instance after stop()/cancel().
 export class AudioRecorder {
   constructor({ maxDurationSeconds = 60 } = {}) {
     this.maxDurationSeconds = maxDurationSeconds;
@@ -127,6 +128,7 @@ export class AudioRecorder {
     this.audioContext?.close();
     this.stream = null;
     this.audioContext = null;
+    this.chunks = [];
   }
 }
 
