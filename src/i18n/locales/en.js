@@ -49,6 +49,11 @@ export const EN = Object.freeze({
     levelSoft: "A little quiet",
     levelClear: "Coming through clearly",
     levelStrong: "Rich and full",
+    playPlayback: "Play recording",
+    pausePlayback: "Pause recording",
+    seekPlayback: "Seek through recording",
+    mutePlayback: "Mute recording",
+    unmutePlayback: "Unmute recording",
     playbackError:
       "This recording can't be played back in this browser. Please record again or switch to an up-to-date browser.",
     lowSignalWarning:

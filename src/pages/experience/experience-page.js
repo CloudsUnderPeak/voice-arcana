@@ -86,6 +86,10 @@ export function mountExperiencePage(
   const resetButton = root.querySelector("[data-action='reset']");
   const audioPreview = root.querySelector("[data-audio-preview]");
   const playbackMessage = root.querySelector("[data-playback-message]");
+  const destroyAudioPlayer = bindAudioPlayer(root, audioPreview, {
+    fallbackDuration: state.recording?.duration,
+    onPlaybackError: handlePlaybackError,
+  });
   startButton?.addEventListener("click", actions.onStart);
   stopButton?.addEventListener("click", actions.onStop);
   submitButton?.addEventListener("click", actions.onSubmit);
@@ -133,6 +137,7 @@ export function mountExperiencePage(
       resetButton?.removeEventListener("click", actions.onReset);
       audioPreview?.removeEventListener("error", handlePlaybackError);
       audioPreview?.removeEventListener("loadedmetadata", handlePlaybackReady);
+      destroyAudioPlayer();
       destroyArtworkFallbacks();
     },
   };
@@ -152,6 +157,139 @@ export function mountExperiencePage(
     }
     if (submitButton) submitButton.disabled = false;
   }
+}
+
+function bindAudioPlayer(
+  root,
+  audio,
+  { fallbackDuration = 0, onPlaybackError } = {},
+) {
+  const player = root.querySelector("[data-audio-player]");
+  if (!audio || !player) return () => {};
+
+  const toggleButton = player.querySelector("[data-audio-toggle]");
+  const muteButton = player.querySelector("[data-audio-mute]");
+  const seekInput = player.querySelector("[data-audio-seek]");
+  const currentTime = player.querySelector("[data-audio-current]");
+  const durationTime = player.querySelector("[data-audio-duration]");
+  const controls = [toggleButton, muteButton, seekInput].filter(Boolean);
+
+  toggleButton?.addEventListener("click", handleToggle);
+  muteButton?.addEventListener("click", handleMute);
+  seekInput?.addEventListener("input", handleSeek);
+  audio.addEventListener("loadedmetadata", syncTimeline);
+  audio.addEventListener("durationchange", syncTimeline);
+  audio.addEventListener("timeupdate", syncTimeline);
+  audio.addEventListener("play", syncPlaybackState);
+  audio.addEventListener("pause", syncPlaybackState);
+  audio.addEventListener("ended", syncPlaybackState);
+  audio.addEventListener("volumechange", syncMuteState);
+  audio.addEventListener("error", disablePlayer);
+
+  syncTimeline();
+  syncPlaybackState();
+  syncMuteState();
+
+  return () => {
+    toggleButton?.removeEventListener("click", handleToggle);
+    muteButton?.removeEventListener("click", handleMute);
+    seekInput?.removeEventListener("input", handleSeek);
+    audio.removeEventListener("loadedmetadata", syncTimeline);
+    audio.removeEventListener("durationchange", syncTimeline);
+    audio.removeEventListener("timeupdate", syncTimeline);
+    audio.removeEventListener("play", syncPlaybackState);
+    audio.removeEventListener("pause", syncPlaybackState);
+    audio.removeEventListener("ended", syncPlaybackState);
+    audio.removeEventListener("volumechange", syncMuteState);
+    audio.removeEventListener("error", disablePlayer);
+    audio.pause();
+  };
+
+  function handleToggle() {
+    if (!audio.paused && !audio.ended) {
+      audio.pause();
+      return;
+    }
+
+    if (audio.ended) audio.currentTime = 0;
+    const playAttempt = audio.play();
+    playAttempt?.catch(() => onPlaybackError?.());
+  }
+
+  function handleMute() {
+    audio.muted = !audio.muted;
+  }
+
+  function handleSeek(event) {
+    const nextTime = Number(event.currentTarget.value);
+    if (!Number.isFinite(nextTime)) return;
+    audio.currentTime = nextTime;
+    syncTimeline();
+  }
+
+  function syncTimeline() {
+    const duration = playbackDuration(audio.duration, fallbackDuration);
+    const current = Number.isFinite(audio.currentTime)
+      ? Math.min(Math.max(0, audio.currentTime), duration)
+      : 0;
+    const progress = duration > 0 ? (current / duration) * 100 : 0;
+
+    if (seekInput) {
+      seekInput.max = String(Math.max(duration, 0.01));
+      seekInput.value = String(current);
+      seekInput.style.setProperty("--audio-progress", `${progress}%`);
+      seekInput.setAttribute(
+        "aria-valuetext",
+        `${formatPlaybackTime(current)} / ${formatPlaybackTime(duration)}`,
+      );
+    }
+    updateTimeElement(currentTime, current);
+    updateTimeElement(durationTime, duration);
+  }
+
+  function syncPlaybackState() {
+    const isPlaying = !audio.paused && !audio.ended;
+    toggleButton?.classList.toggle("is-playing", isPlaying);
+    toggleButton?.setAttribute(
+      "aria-label",
+      t(isPlaying ? "recorder.pausePlayback" : "recorder.playPlayback"),
+    );
+  }
+
+  function syncMuteState() {
+    muteButton?.classList.toggle("is-muted", audio.muted);
+    muteButton?.setAttribute("aria-pressed", String(audio.muted));
+    muteButton?.setAttribute(
+      "aria-label",
+      t(audio.muted ? "recorder.unmutePlayback" : "recorder.mutePlayback"),
+    );
+  }
+
+  function disablePlayer() {
+    player.classList.add("is-disabled");
+    controls.forEach((control) => {
+      control.disabled = true;
+    });
+  }
+}
+
+function playbackDuration(actualDuration, fallbackDuration) {
+  if (Number.isFinite(actualDuration) && actualDuration > 0) return actualDuration;
+  if (Number.isFinite(fallbackDuration) && fallbackDuration > 0) return fallbackDuration;
+  return 0;
+}
+
+function updateTimeElement(element, seconds) {
+  if (!element) return;
+  element.textContent = formatPlaybackTime(seconds);
+  element.setAttribute("datetime", `PT${Math.max(0, Math.floor(seconds))}S`);
+}
+
+function formatPlaybackTime(seconds) {
+  const safeSeconds = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainder = safeSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
 }
 
 function recordingPanelContent({
@@ -200,8 +338,43 @@ function recordingPanelContent({
           <span data-elapsed>${formatTime(state.recording.duration, maxDurationSeconds)}</span>
         </time>
       </div>
-      <div class="audio-preview">
-        <audio controls preload="metadata" data-audio-preview></audio>
+      <div class="audio-preview" data-audio-player>
+        <audio preload="metadata" data-audio-preview hidden></audio>
+        <button
+          class="audio-player__button audio-player__toggle"
+          type="button"
+          data-audio-toggle
+          aria-label="${escapeHtml(t("recorder.playPlayback"))}"
+        ><span class="audio-player__play-icon" aria-hidden="true"></span></button>
+        <time class="audio-player__time" data-audio-current datetime="PT0S">00:00</time>
+        <input
+          class="audio-player__seek"
+          type="range"
+          min="0"
+          max="${Math.max(0.01, state.recording.duration)}"
+          value="0"
+          step="0.01"
+          data-audio-seek
+          aria-label="${escapeHtml(t("recorder.seekPlayback"))}"
+        />
+        <time
+          class="audio-player__time"
+          data-audio-duration
+          datetime="PT${Math.floor(state.recording.duration)}S"
+        >${formatTime(state.recording.duration, maxDurationSeconds)}</time>
+        <button
+          class="audio-player__button audio-player__mute"
+          type="button"
+          data-audio-mute
+          aria-label="${escapeHtml(t("recorder.mutePlayback"))}"
+          aria-pressed="false"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 9h4l5-4v14l-5-4H4z" />
+            <path class="audio-player__waves" d="M16 9c1.4 1.7 1.4 4.3 0 6m2.7-8.5c3 3 3 8 0 11" />
+            <path class="audio-player__mute-slash" d="m16 9 5 6" />
+          </svg>
+        </button>
       </div>
       <p class="form-message" role="alert" data-playback-message hidden></p>
       ${

@@ -100,7 +100,7 @@ domain → utils
 - MediaStream 不連接到 `AudioDestinationNode`，避免回授。
 - 停止後先拒絕空 Blob，再以 `decodeAudioData` 驗證格式並快取 AudioBuffer，避免分析時重複解碼。
 - 以 20ms frame 的峰值 RMS 標記近乎靜音錄音；只顯示品質提示，不以裝置音量差異直接阻擋。
-- `<audio>` 必須監聽載入錯誤；無法試聽時停用分析並提供重錄或更新瀏覽器的指引。
+- `<audio>` 隱藏原生控制列並由 `experience-page.js` 綁定自訂播放／暫停、進度、時間與靜音控制；必須同步 `play`、`pause`、`timeupdate`、`durationchange`、`volumechange` 與載入錯誤。無法試聽時停用播放器與分析，並提供重錄或更新瀏覽器的指引。
 
 ## 6. 效能預算
 
@@ -148,6 +148,7 @@ M1 其餘目標：
 - SPA 目前不依賴 path route，因此不需要 fallback rewrite。
 - 不注入第三方 analytics 或錄音代理。
 - 桌面結果頁以固定高度的 `.result-shell` 作為垂直捲動容器；`.result-page` 保留一個 viewport 的最小高度，但內容增高時自然撐開，避免英文文案、文字縮放或較矮視窗裁切底部操作。
+- `561–1100px` 採平板自然捲動，不套用手機緊縮排版；首屏 `.intro-hero` 內部以左側文字、右側牌組示意的雙欄排列使用寬度，朗讀區與結果頁仍改為上下排列。`<= 560px` 不再依視窗高度隱藏文案，改以正常字級、單欄操作與自然捲動保持可讀性。`lang-en.css` 載入於響應式樣式之後，因此英文手機版必須在同檔案內重申標題、六軸欄寬與敘述字級的 `<= 560px` 規則；頁首第一欄使用 `minmax(0, 1fr)`，避免品牌文字把語言切換鈕或結果內容推出 viewport。
 
 ## 10. 里程碑
 

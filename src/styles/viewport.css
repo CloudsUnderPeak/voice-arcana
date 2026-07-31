@@ -123,10 +123,6 @@
   margin: 6px 0 8px;
 }
 
-.experience-page .audio-preview audio {
-  height: 32px;
-}
-
 .processing-page {
   min-height: 0;
   padding: clamp(24px, 5vh, 55px) 24px;
@@ -293,7 +289,7 @@
   }
 }
 
-@media (max-width: 980px) {
+@media (max-width: 1100px) {
   body {
     height: auto;
     min-height: 100dvh;
@@ -320,10 +316,10 @@
   .experience-page {
     grid-template-columns: minmax(0, 1fr);
     grid-auto-rows: max-content;
-    gap: 20px;
+    gap: clamp(28px, 4vh, 52px);
     align-content: start;
     align-items: stretch;
-    max-width: 760px;
+    max-width: 900px;
     padding: 28px 28px 44px;
   }
 
@@ -337,7 +333,7 @@
 
   .result-page {
     display: block;
-    max-width: 760px;
+    max-width: 900px;
     padding: 34px 28px 52px;
   }
 
@@ -359,15 +355,110 @@
   }
 }
 
+@media (min-width: 561px) and (max-width: 1100px) {
+  .experience-page .intro-hero {
+    display: grid;
+    grid-template-areas:
+      "ornament deck"
+      "eyebrow deck"
+      "title deck"
+      "lead deck"
+      "privacy deck";
+    grid-template-columns: minmax(0, 1fr) clamp(210px, 28vw, 280px);
+    column-gap: clamp(32px, 6vw, 64px);
+    align-items: start;
+  }
+
+  .experience-page .hero-ornament {
+    grid-area: ornament;
+  }
+
+  .experience-page .intro-hero > .eyebrow {
+    grid-area: eyebrow;
+  }
+
+  .experience-page .intro-hero h1 {
+    grid-area: title;
+  }
+
+  .experience-page .hero-lead {
+    grid-area: lead;
+  }
+
+  .experience-page .privacy-note {
+    grid-area: privacy;
+  }
+
+  .experience-page .hero-deck-preview {
+    grid-area: deck;
+    width: 100%;
+    margin: 0;
+    padding: 24px 16px 20px;
+    flex-direction: column;
+    justify-self: stretch;
+    align-self: center;
+    gap: 16px;
+    border: 1px solid var(--line-soft);
+    background: rgba(16, 10, 23, 0.28);
+  }
+
+  .experience-page .hero-deck-preview__cards {
+    width: min(100%, 250px);
+    height: 190px;
+  }
+
+  .experience-page .hero-deck-preview__cards img {
+    bottom: 4px;
+    left: 50%;
+    width: 96px;
+    height: 154px;
+    transform: translateX(-50%);
+  }
+
+  .experience-page .hero-deck-preview__cards img:first-child {
+    left: 50%;
+    height: 146px;
+    transform: translateX(-112%) rotate(-12deg);
+  }
+
+  .experience-page .hero-deck-preview__cards img:last-child {
+    left: 50%;
+    height: 146px;
+    transform: translateX(12%) rotate(12deg);
+  }
+
+  .experience-page .hero-deck-preview p {
+    text-align: center;
+  }
+}
+
 @media (max-width: 820px) {
   :root {
     --header-height: 58px;
   }
 
   .site-header {
+    grid-template-columns: minmax(0, 1fr) auto;
     height: var(--header-height);
     min-height: var(--header-height);
     padding: 0 16px;
+  }
+
+  .brand,
+  .brand__name {
+    min-width: 0;
+  }
+
+  .brand__name strong,
+  .brand__name small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .lang-switch {
+    flex: none;
+    padding: 5px 10px;
   }
 
   .brand__mark {
@@ -377,29 +468,31 @@
   .site-header__context {
     display: none;
   }
+}
 
+@media (max-width: 560px) {
   .experience-page {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto;
-    gap: 4px;
-    padding: 8px 16px 12px;
+    gap: 38px;
+    align-content: start;
+    padding: 24px 18px 56px;
   }
 
   .experience-page .intro-hero {
     display: block;
-    padding: 0;
+    padding: 8px 0 0;
   }
 
-  .experience-page .hero-ornament,
-  .experience-page .intro-hero > .eyebrow {
+  .experience-page .hero-ornament {
     display: none;
   }
 
   .experience-page .intro-hero h1 {
-    margin: 0 0 4px;
-    font-size: clamp(1.45rem, 7vw, 2rem);
-    line-height: 1.2;
+    margin: 0 0 16px;
+    font-size: clamp(2.1rem, 10vw, 2.65rem);
+    line-height: 1.18;
   }
 
   .experience-page .intro-hero h1 em {
@@ -407,35 +500,36 @@
   }
 
   .experience-page .hero-lead {
-    margin-bottom: 4px;
-    font-family: var(--sans);
-    font-size: 0.7rem;
-    line-height: 1.45;
+    margin-bottom: 16px;
+    font-size: 0.92rem;
+    line-height: 1.75;
   }
 
   .experience-page .privacy-note {
-    font-size: 0.58rem;
+    font-size: 0.7rem;
+    line-height: 1.5;
   }
 
   .experience-page .hero-deck-preview {
-    display: none;
+    justify-content: center;
+    margin-top: 24px;
   }
 
   .experience-page .section-heading {
-    margin-bottom: 5px;
+    margin-bottom: 14px;
   }
 
-  .experience-page .section-heading .eyebrow,
   .experience-page .step-indicator {
     display: none;
   }
 
   .experience-page .section-heading h2 {
-    font-size: 1.05rem;
+    font-size: 1.45rem;
+    line-height: 1.4;
   }
 
   .experience-page .reading-card {
-    padding: 10px 14px;
+    padding: 22px 18px;
   }
 
   .experience-page .reading-card::before,
@@ -445,29 +539,31 @@
   }
 
   .experience-page .reading-card__meta {
-    padding-bottom: 5px;
-    font-size: 0.6rem;
+    gap: 10px;
+    padding-bottom: 12px;
+    font-size: 0.66rem;
+    line-height: 1.45;
   }
 
   .experience-page .reading-card h3 {
-    margin: 5px 0;
-    font-size: 0.95rem;
+    margin: 16px 0 12px;
+    font-size: 1.2rem;
   }
 
   .experience-page .reading-copy {
     columns: auto;
-    font-size: clamp(0.69rem, 2.8vw, 0.78rem);
-    line-height: 1.48;
-    letter-spacing: 0.025em;
+    font-size: 0.92rem;
+    line-height: 1.8;
+    letter-spacing: 0.03em;
   }
 
   .experience-page .reading-copy p:first-child {
-    margin-bottom: 4px;
+    margin-bottom: 14px;
   }
 
   .experience-page .recorder-panel {
-    margin-top: 6px;
-    padding: 8px 12px;
+    margin-top: 16px;
+    padding: 16px;
   }
 
   .experience-page .recorder-panel--idle,
@@ -477,33 +573,39 @@
   }
 
   .experience-page .recording-time {
-    font-size: 0.9rem;
+    font-size: 1rem;
   }
 
   .experience-page .voice-meter {
-    margin: 4px 0 7px;
-    padding: 6px 8px 5px;
+    margin: 10px 0 14px;
+    padding: 10px 12px;
   }
 
   .experience-page .record-button,
   .experience-page .button {
     width: 100%;
-    min-height: 40px;
-    padding: 0 14px;
-    font-size: 0.72rem;
+    min-height: 50px;
+    padding: 0 18px;
+    font-size: 0.78rem;
   }
 
   .experience-page .recorder-actions {
-    flex-direction: row;
+    flex-direction: column;
   }
 
   .experience-page .audio-preview {
-    margin: 5px 0 7px;
+    margin: 10px 0 14px;
   }
 
-  .experience-page .audio-preview audio {
-    width: 100%;
-    height: 28px;
+  .experience-page .audio-preview {
+    grid-template-columns: 38px 3em minmax(56px, 1fr) 3em 38px;
+    gap: 8px;
+    padding: 10px 8px;
+  }
+
+  .experience-page .audio-player__button {
+    width: 38px;
+    height: 38px;
   }
 
 
@@ -517,18 +619,18 @@
 
   .result-page {
     display: block;
-    padding: 20px 16px 34px;
+    padding: 28px 18px 56px;
   }
 
   .result-art-column {
     justify-content: center;
-    margin: 0 0 20px;
+    margin: 0 0 30px;
     min-height: 0;
   }
 
   .arcana-frame {
-    width: min(68vw, 260px);
-    padding: 8px;
+    width: min(76vw, 290px);
+    padding: 10px;
   }
 
   .arcana-card__caption {
@@ -539,7 +641,7 @@
   }
 
   .arcana-card__caption small {
-    display: none;
+    display: block;
   }
 
   .arcana-card__number {
@@ -549,7 +651,6 @@
     font-size: 0.56rem;
   }
 
-  .local-seal,
   .result-fan {
     display: none;
   }
@@ -563,56 +664,56 @@
   }
 
   .result-content > .eyebrow {
-    margin-bottom: 2px;
-    font-size: 0.55rem;
+    margin-bottom: 8px;
+    font-size: 0.64rem;
   }
 
   .result-content h1 {
-    max-width: calc(100vw - 32px);
-    margin-bottom: 0;
-    font-size: clamp(1.35rem, 6.3vw, 1.75rem);
+    max-width: calc(100vw - 36px);
+    margin-bottom: 4px;
+    font-size: clamp(1.75rem, 8vw, 2.1rem);
     letter-spacing: 0.025em;
     white-space: normal;
   }
 
   .result-tagline {
-    margin-bottom: 2px;
-    font-size: 0.7rem;
+    margin-bottom: 6px;
+    font-size: 0.84rem;
   }
 
   .portrait-heading {
-    margin: 5px 0 3px;
+    margin: 22px 0 10px;
   }
 
   .portrait-heading h2 {
-    font-size: 0.78rem;
+    font-size: 0.9rem;
   }
 
   .portrait-axes {
-    gap: 2px;
+    gap: 7px;
   }
 
   .portrait-axis {
-    grid-template-columns: 23px 34px minmax(0, 1fr) 42px;
-    width: min(100%, calc(100vw - 32px));
-    min-height: 25px;
-    gap: 6px;
-    font-size: 0.66rem;
+    grid-template-columns: 28px 44px minmax(0, 1fr) 58px;
+    width: min(100%, calc(100vw - 36px));
+    min-height: 30px;
+    gap: 7px;
+    font-size: 0.73rem;
   }
 
   .portrait-axis__icon {
-    width: 23px;
-    height: 23px;
-    font-size: 0.65rem;
+    width: 28px;
+    height: 28px;
+    font-size: 0.72rem;
   }
 
   .portrait-axis__track {
     min-width: 0;
-    height: 18px;
+    height: 22px;
   }
 
   .portrait-axis__track::before {
-    top: 9px; /* keep the hairline integer-aligned for the 18px mobile track */
+    top: 11px;
   }
 
   .portrait-axis__high {
@@ -620,48 +721,35 @@
   }
 
   .result-reading {
-    gap: 3px;
-    margin: 4px 0 0;
-    font-size: 0.66rem;
-    line-height: 1.45;
+    gap: 6px;
+    margin: 18px 0 0;
+    font-size: 0.86rem;
+    line-height: 1.72;
   }
 
   .result-question {
-    margin: 5px 0 2px;
-    padding: 5px 8px;
-    font-size: 0.68rem;
-    line-height: 1.35;
+    margin: 18px 0 4px;
+    padding: 12px 14px;
+    font-size: 0.84rem;
+    line-height: 1.55;
   }
 
   .result-question span {
-    margin-right: 7px;
-    font-size: 0.5rem;
+    display: block;
+    margin: 0 0 4px;
+    font-size: 0.58rem;
   }
 
   .result-actions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    margin-top: 5px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    margin-top: 18px;
   }
 
   .result-actions .button {
     width: 100%;
-    min-height: 36px;
+    min-height: 50px;
     padding: 0 18px;
-    font-size: 0.68rem;
+    font-size: 0.78rem;
   }
-}
-
-@media (max-height: 680px) and (max-width: 820px) {
-  .experience-page .hero-lead {
-    display: none;
-  }
-
-  .experience-page .reading-card__meta span:last-child {
-    display: none;
-  }
-
-  .result-question {
-    display: none;
-  }
-
 }
