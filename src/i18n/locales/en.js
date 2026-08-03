@@ -29,8 +29,8 @@ export const EN = Object.freeze({
     duration: "Aim for 50–60 seconds",
     title: "Teaching Geometry to Shine",
     paragraphs: [
-      "In the nineteen-twenties, cities suddenly learned to speak in straight lines, sunbursts, and gold. People folded ancient order, machine-age speed, and dreams of the future into buildings, jewelry, and posters. Symmetry steadied the eye; rising silhouettes made skylines look ready for takeoff. Even a doorway, a lamp, or a small powder case could carry the glow of a stage.",
-      "When night fell, theaters and ballrooms lit up in layered outlines — glass reflecting copper, stone holding a confident rhythm. Art Deco was never mere decoration. It believed daily life deserved careful arrangement: a line can guide your steps, a color can change your breathing, and repeating geometry helps strangers find their way in the same city. Beauty stopped being distant — it waited in every pause and upward glance.",
+      "In the nineteen-twenties, cities began drawing the future in straight lines, sunbursts, and gold. Buildings, jewelry, and posters joined ancient order with machine-age speed. Symmetry steadied the eye, while rising silhouettes made the skyline seem ready for takeoff. Even a doorway or lamp could hold the glow of a stage.",
+      "When night fell, theaters and stations lit up in layered outlines. Glass reflected copper; stone held a clear rhythm. Art Deco believed daily life deserved careful arrangement: lines could guide a step, colors could shift a breath, and repeating geometry could help strangers find direction. Beauty was no longer distant. It waited in every pause, turn, and upward glance.",
     ],
   },
   recorder: {

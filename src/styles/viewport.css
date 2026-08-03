@@ -85,7 +85,7 @@
   columns: 2;
   column-fill: balance;
   column-gap: 32px;
-  font-size: clamp(0.82rem, 1vw, 0.96rem);
+  font-size: clamp(0.94rem, 1.15vw, 1.08rem);
   line-height: 1.75;
 }
 
@@ -261,7 +261,7 @@
 
   .experience-page .reading-copy {
     columns: 2;
-    font-size: 0.78rem;
+    font-size: 0.88rem;
     line-height: 1.55;
   }
 
@@ -552,7 +552,7 @@
 
   .experience-page .reading-copy {
     columns: auto;
-    font-size: 0.92rem;
+    font-size: 1rem;
     line-height: 1.8;
     letter-spacing: 0.03em;
   }

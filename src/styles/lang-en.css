@@ -40,7 +40,7 @@
 
 /* The English passage is visually larger: tighten body size and leading for the single-viewport desktop layout */
 :lang(en) .experience-page .reading-copy {
-  font-size: clamp(0.76rem, 0.92vw, 0.9rem);
+  font-size: clamp(0.82rem, 0.98vw, 0.96rem);
   line-height: 1.6;
 }
 
@@ -55,7 +55,7 @@
    dimensions override the 390px result layout. */
 @media (max-width: 560px) {
   :lang(en) .experience-page .reading-copy {
-    font-size: 0.9rem;
+    font-size: 0.96rem;
     line-height: 1.75;
   }
 

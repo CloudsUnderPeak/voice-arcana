@@ -32,6 +32,10 @@ test("t interpolates parameters and falls back to the key when missing", () => {
   assert.ok(Array.isArray(t("reading.paragraphs")));
 });
 
+test("the Chinese reading passage stays at 160 displayed characters", () => {
+  assert.equal(ZH_HANT.reading.paragraphs.join("").length, 160);
+});
+
 test("detectLocale prefers the URL parameter, then browser language", () => {
   assert.equal(detectLocale("?lang=en", "zh-TW"), "en");
   assert.equal(detectLocale("?lang=zh-Hant", "en-US"), "zh-Hant");
