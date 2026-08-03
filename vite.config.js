@@ -16,7 +16,22 @@ const CONTENT_SECURITY_POLICY = [
   "base-uri 'none'",
 ].join("; ");
 
+function assetFileName(assetInfo) {
+  const marker = "src/assets/art/";
+  const sourcePath = (assetInfo.originalFileNames || [])
+    .map((fileName) => fileName.replaceAll("\\", "/"))
+    .find((fileName) => fileName.includes(marker));
+
+  if (!sourcePath) return "assets/[name]-[hash][extname]";
+
+  const relativePath = sourcePath.slice(sourcePath.indexOf(marker) + marker.length);
+  const directoryEnd = relativePath.lastIndexOf("/") + 1;
+  return `assets/art/${relativePath.slice(0, directoryEnd)}[name][extname]`;
+}
+
 export default defineConfig({
+  // All runtime assets live in src/ and enter the build through module URLs.
+  publicDir: false,
   // Relative asset URLs work on both user/organization Pages and
   // repository Pages mounted under /<repository>/.
   base: "./",
@@ -25,6 +40,13 @@ export default defineConfig({
     emptyOutDir: true,
     target: "es2020",
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        // Card URLs are also used by static OG pages, so retain their stable
+        // source-relative names while other build assets keep content hashes.
+        assetFileNames: assetFileName,
+      },
+    },
   },
   plugins: [
     {
@@ -44,6 +66,13 @@ export default defineConfig({
             },
           ],
         };
+      },
+    },
+    {
+      name: "emit-nojekyll",
+      apply: "build",
+      generateBundle() {
+        this.emitFile({ type: "asset", fileName: ".nojekyll", source: "" });
       },
     },
     {

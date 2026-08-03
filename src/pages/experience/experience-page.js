@@ -2,6 +2,7 @@ import { siteHeader } from "../../ui/site-header.js";
 import { bindArtworkFallbacks } from "../../ui/image-fallback.js";
 import { escapeHtml } from "../../utils/escape-html.js";
 import { t } from "../../i18n/i18n.js";
+import { HERO_CARD_THUMBNAIL_URLS } from "../../ui/artwork-assets.js";
 
 const LEVEL_SEGMENTS = 18;
 
@@ -33,9 +34,9 @@ export function mountExperiencePage(
           </div>
           <div class="hero-deck-preview" aria-label="${escapeHtml(t("hero.deckAria"))}">
             <div class="hero-deck-preview__cards" aria-hidden="true">
-              <img src="./assets/art/cards/thumbs/card-listener.webp" data-artwork alt="" width="400" height="600" />
-              <img src="./assets/art/cards/thumbs/card-night-keeper.webp" data-artwork alt="" width="400" height="600" />
-              <img src="./assets/art/cards/thumbs/card-wave-breaker.webp" data-artwork alt="" width="400" height="600" />
+              <img src="${escapeHtml(HERO_CARD_THUMBNAIL_URLS.listener)}" data-artwork alt="" width="400" height="600" />
+              <img src="${escapeHtml(HERO_CARD_THUMBNAIL_URLS.nightKeeper)}" data-artwork alt="" width="400" height="600" />
+              <img src="${escapeHtml(HERO_CARD_THUMBNAIL_URLS.waveBreaker)}" data-artwork alt="" width="400" height="600" />
             </div>
             <p><strong>${escapeHtml(t("hero.deckTitle"))}</strong><span>${escapeHtml(t("hero.deckHint"))}</span></p>
           </div>

@@ -13,3 +13,5 @@ python tools/dev-server/server.py --port 8080
 ```
 
 停止伺服器請在執行視窗按 `Ctrl+C`。
+
+伺服器會直接發布專案根目錄；圖片位於 `src/assets/`，不需要額外複製或掛載 `public/`。

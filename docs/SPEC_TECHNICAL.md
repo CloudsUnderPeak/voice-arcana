@@ -10,6 +10,7 @@ Runtime: Browser only
 
 - UI：HTML、CSS、瀏覽器原生 ES Modules。
 - 開發/打包：Vite；只產生靜態檔。
+- 靜態圖片：放在 `src/assets/`，由 UI 模組透過 `new URL(..., import.meta.url)` 取得；一般靜態伺服器可直接發布專案根目錄，Vite build 會將引用到的素材納入 `dist/`，不使用 `public/` 特殊映射。
 - 錄音：`navigator.mediaDevices.getUserMedia` + `MediaRecorder`。
 - 即時音量：`AudioContext` + `AnalyserNode`，以感知曲線映射到分段強度計；不保存、不直接沿用為分析分數。
 - 解碼：`OfflineAudioContext.decodeAudioData` 固定 16 kHz，讓分析不隨裝置輸出取樣率漂移；個別容器解碼失敗時退回 `AudioContext`。

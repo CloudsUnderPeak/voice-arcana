@@ -13,14 +13,19 @@ const SHARE_LOCALES = [
   { locale: "en", dictionary: EN, prefix: "en/" },
 ];
 
-export function renderSharePage(card, siteUrl = "", localeEntry = SHARE_LOCALES[0]) {
+export function renderSharePage(
+  card,
+  siteUrl = "",
+  localeEntry = SHARE_LOCALES[0],
+  { cardAssetRoot = "assets/art/cards" } = {},
+) {
   const { locale, dictionary, prefix } = localeEntry;
   const copy = dictionary.cards[card.id];
   const page = dictionary.sharePage;
   const title = page.title.replace("{name}", copy.name);
   const description = page.description.replace("{tagline}", copy.tagline);
   const appRoot = prefix ? "../../../" : "../../";
-  const imagePath = `assets/art/cards/card-${card.id}.webp`;
+  const imagePath = `${cardAssetRoot}/card-${card.id}.webp`;
   const image = siteUrl ? `${siteUrl}${imagePath}` : `${appRoot}${imagePath}`;
   const pageUrl = siteUrl ? `${siteUrl}share/${prefix}${card.id}/` : "";
   const langParam = locale === "zh-Hant" ? "" : `params.set("lang", "${locale}");`;
@@ -88,7 +93,9 @@ export function sharePagesPlugin() {
         if (!card) return next();
         const localeEntry = SHARE_LOCALES.find(({ prefix }) => prefix === (match[1] || ""));
         response.setHeader("Content-Type", "text/html; charset=utf-8");
-        response.end(renderSharePage(card, "", localeEntry));
+        response.end(renderSharePage(card, "", localeEntry, {
+          cardAssetRoot: "src/assets/art/cards",
+        }));
       });
     },
   };

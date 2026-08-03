@@ -130,7 +130,7 @@ MVP 範圍：50–60 秒朗讀文章（雙語）、錄音權限與狀態流程�
 - **Reading card**：文章、主題、預估朗讀時間。
 - **Recorder panel**：idle 只保留主要錄音按鈕；錄音中顯示計時、發光圓點、18 段強度條與文字級別；完成後顯示試聽與分析操作。
 - **Processing sigil**：本機分析的等待回饋。
-- **Voice card**：使用 `public/assets/art/cards/` 的八張 2:3 WebP，牌名與序號由 HTML 疊字；簡易本機 server 無法解析公開素材路徑時改讀 `public/` 原始路徑。
+- **Voice card**：使用 `src/assets/art/cards/` 的八張 2:3 WebP，牌名與序號由 HTML 疊字；圖片 URL 由 ES module 相對位置解析，一般靜態伺服器與 Vite build 共用同一份來源。
 - **Portrait axis**：左右語意、七段刻度、菱形位置、數字分數。
 - **Result question**：每張牌只保留一個核心提問與簡短限制聲明。
 

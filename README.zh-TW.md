@@ -59,6 +59,7 @@ npm run preview  # 預覽 production build
 ```text
 src/
 ├─ app/                  session 狀態與體驗流程協調
+├─ assets/               牌卡圖片與其他由建置管理的靜態素材
 ├─ domain/               牌卡向量、FFT 與六軸分析（不含 UI 文案）
 ├─ i18n/                 語系字典（zh-Hant / en）與運行時
 ├─ infrastructure/audio/ 錄音與 AudioBuffer 解碼

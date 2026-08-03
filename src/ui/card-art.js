@@ -1,9 +1,10 @@
 import { escapeHtml } from "../utils/escape-html.js";
 import { t } from "../i18n/i18n.js";
+import { cardArtworkUrl } from "./artwork-assets.js";
 
 // card must already be localized via localizeCard() (name/tagline and other locale copy).
 export function renderCardArt(card) {
-  const artwork = `./assets/art/cards/card-${card.id}.webp`;
+  const artwork = cardArtworkUrl(card.id);
   const description = card.artAlt || t("cardArt.fallbackAlt");
 
   return `
@@ -11,7 +12,7 @@ export function renderCardArt(card) {
       <div class="arcana-card-wrap">
         <img
           class="arcana-card"
-          src="${artwork}"
+          src="${escapeHtml(artwork)}"
           data-artwork
           width="1600"
           height="2400"

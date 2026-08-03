@@ -1,6 +1,5 @@
-// Mark failed artwork loads with is-missing so CSS can show a fallback visual;
-// no second source is attempted (tools/dev-server maps public/ onto the site
-// root, so production and development paths match).
+// Mark failed artwork loads with is-missing so CSS can show a fallback visual.
+// Assets resolve from src/ in a plain server and are rewritten by Vite in builds.
 export function bindArtworkFallbacks(root) {
   const images = [...root.querySelectorAll("img[data-artwork]")];
   const bindings = images.map((image) => {

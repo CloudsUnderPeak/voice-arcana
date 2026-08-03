@@ -10,5 +10,4 @@ ornaments/
 motion/
 ```
 
-目前網頁使用 CSS 與內嵌 SVG 佔位，不依賴此資料夾內的檔案。
-
+目前八張牌圖與首頁牌組縮圖已由 `src/ui/artwork-assets.js` 接入；其他目錄仍保留給後續正式素材。

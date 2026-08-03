@@ -127,7 +127,7 @@
 ## 資料夾放置方式
 
 ```text
-public/assets/art/
+src/assets/art/
 ├─ brand/
 ├─ cards/
 ├─ textures/
@@ -148,7 +148,8 @@ public/assets/art/
 
 ## 專案目前的處理
 
-- `src/ui/card-art.js`：載入八張 WebP 牌圖，並由 HTML 疊加坡框、序號、牌名與標語。
+- `src/ui/artwork-assets.js`：集中解析八張牌圖與首頁縮圖的 module-relative URL，Vite build 會自動納入這些素材。
+- `src/ui/card-art.js`：載入對應 WebP 牌圖，並由 HTML 疊加坡框、序號、牌名與標語。
 - `src/styles/`：深青背景、金色線條與幾何裝飾佔位。
 - 沒有呼叫圖像生成服務，也沒有新增大型美術依賴。
 - 後續替換圖片時維持既有檔名與 2:3 比例，不改動錄音和分析 domain。

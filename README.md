@@ -59,6 +59,7 @@ Start at [docs/SPEC_INDEX.md](docs/SPEC_INDEX.md) (documentation is written in T
 ```text
 src/
 ├─ app/                  session state and experience flow coordination
+├─ assets/               card artwork and other build-managed static assets
 ├─ domain/               card vectors, FFT, and six-axis analysis (no UI copy)
 ├─ i18n/                 locale dictionaries (zh-Hant / en) and runtime
 ├─ infrastructure/audio/ recording and AudioBuffer decoding
